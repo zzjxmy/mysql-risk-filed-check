@@ -1,0 +1,43 @@
+# 依赖目录
+node_modules/
+.pnp/
+.pnp.js
+
+# 构建产物
+/dist
+/build
+*.jar
+target/
+
+# 环境配置
+.env
+.env.local
+.env.*.local
+
+# 日志
+*.log
+logs/
+reports/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# 测试覆盖率
+coverage/
+.nyc_output/
+
+# 临时文件
+*.tmp
+*.temp
+.cache/
+
+# Docker volumes
+mysql_data/
