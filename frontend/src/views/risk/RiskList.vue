@@ -5,6 +5,23 @@
         <span>风险结果</span>
       </template>
       <el-form :inline="true" class="search-form">
+        <el-form-item label="执行记录">
+          <el-select 
+            v-model="searchForm.executionId" 
+            placeholder="选择执行记录" 
+            clearable 
+            filterable
+            style="width: 200px"
+            @change="fetchData"
+          >
+            <el-option 
+              v-for="item in executionList" 
+              :key="item.id" 
+              :label="formatExecutionLabel(item)" 
+              :value="item.id" 
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="数据库">
           <el-input v-model="searchForm.databaseName" placeholder="请输入" clearable />
         </el-form-item>
@@ -25,6 +42,7 @@
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="fetchData">查询</el-button>
+          <el-button @click="resetSearch">重置</el-button>
         </el-form-item>
       </el-form>
 
@@ -92,10 +110,12 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getRisks, updateRiskStatus, type RiskResult } from '../../api/risk'
+import { getTaskExecutions, type Execution } from '../../api/task'
 
 const route = useRoute()
 const loading = ref(false)
 const tableData = ref<RiskResult[]>([])
+const executionList = ref<Execution[]>([])
 const detailVisible = ref(false)
 const currentRisk = ref<RiskResult | null>(null)
 
@@ -106,6 +126,34 @@ const searchForm = reactive({
   status: ''
 })
 const pagination = reactive({ page: 1, size: 20, total: 0 })
+
+const formatExecutionLabel = (execution: Execution) => {
+  const date = execution.startTime ? new Date(execution.startTime).toLocaleString('zh-CN') : '未知时间'
+  const status = execution.status === 'SUCCESS' ? '成功' : 
+                 execution.status === 'FAILED' ? '失败' : 
+                 execution.status === 'RUNNING' ? '执行中' : execution.status
+  return `#${execution.id} - ${date} [${status}]`
+}
+
+const resetSearch = () => {
+  searchForm.executionId = undefined
+  searchForm.databaseName = ''
+  searchForm.riskType = ''
+  searchForm.status = ''
+  pagination.page = 1
+  fetchData()
+}
+
+const fetchExecutions = async () => {
+  try {
+    const res = await getTaskExecutions(undefined, { page: 0, size: 100 })
+    if (res.code === 200) {
+      executionList.value = res.data.content
+    }
+  } catch (error) {
+    console.error('获取执行记录失败:', error)
+  }
+}
 
 const getStatusType = (status: string) => {
   const map: Record<string, string> = { PENDING: 'warning', IGNORED: 'info', RESOLVED: 'success' }
@@ -145,7 +193,10 @@ const handleStatusChange = async (row: RiskResult, status: string) => {
   }
 }
 
-onMounted(() => { fetchData() })
+onMounted(() => { 
+  fetchExecutions()
+  fetchData() 
+})
 </script>
 
 <style scoped>

@@ -36,6 +36,10 @@
           <el-icon><Bell /></el-icon>
           <span>告警配置</span>
         </el-menu-item>
+        <el-menu-item index="/executions">
+          <el-icon><Timer /></el-icon>
+          <span>执行记录</span>
+        </el-menu-item>
         <el-menu-item index="/users" v-if="userStore.userInfo?.role === 'ADMIN'">
           <el-icon><User /></el-icon>
           <span>用户管理</span>

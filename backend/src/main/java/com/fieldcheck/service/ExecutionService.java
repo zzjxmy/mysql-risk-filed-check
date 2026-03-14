@@ -27,6 +27,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -45,6 +46,35 @@ public class ExecutionService {
 
     public Page<TaskExecution> getExecutionsByTask(Long taskId, Pageable pageable) {
         return executionRepository.findByTaskId(taskId, pageable);
+    }
+
+    public Page<TaskExecution> getAllExecutions(String taskName, String status, String triggerType, Pageable pageable) {
+        // For now, return all and filter in memory if needed
+        // In production, this should be done with a custom repository query
+        Page<TaskExecution> all = executionRepository.findAll(pageable);
+        
+        List<TaskExecution> filtered = all.getContent().stream()
+                .filter(e -> {
+                    if (taskName != null && !taskName.isEmpty()) {
+                        if (e.getTask() == null || !e.getTask().getName().contains(taskName)) {
+                            return false;
+                        }
+                    }
+                    if (status != null && !status.isEmpty()) {
+                        if (!status.equals(e.getStatus().name())) {
+                            return false;
+                        }
+                    }
+                    if (triggerType != null && !triggerType.isEmpty()) {
+                        if (!triggerType.equals(e.getTriggerType())) {
+                            return false;
+                        }
+                    }
+                    return true;
+                })
+                .collect(Collectors.toList());
+        
+        return new org.springframework.data.domain.PageImpl<>(filtered, pageable, all.getTotalElements());
     }
 
     public TaskExecution getExecution(Long id) {
@@ -154,8 +184,10 @@ public class ExecutionService {
     @Transactional
     public void updateProgress(Long executionId, int processedTables, int totalTables, int riskCount) {
         TaskExecution execution = getExecution(executionId);
+        if (totalTables > 0) {
+            execution.setTotalTables(totalTables);
+        }
         execution.setProcessedTables(processedTables);
-        execution.setTotalTables(totalTables);
         execution.setRiskCount(riskCount);
         executionRepository.save(execution);
     }

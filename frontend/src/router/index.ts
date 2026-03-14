@@ -73,6 +73,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '告警配置' }
       },
       {
+        path: 'executions',
+        name: 'Executions',
+        component: () => import('../views/execution/ExecutionList.vue'),
+        meta: { title: '执行记录' }
+      },
+      {
         path: 'users',
         name: 'Users',
         component: () => import('../views/system/UserList.vue'),

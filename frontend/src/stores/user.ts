@@ -11,7 +11,7 @@ interface UserInfo {
 
 export const useUserStore = defineStore('user', () => {
   const token = ref<string>(localStorage.getItem('token') || '')
-  const userInfo = ref<UserInfo | null>(null)
+  const userInfo = ref<UserInfo | null>(JSON.parse(localStorage.getItem('userInfo') || 'null'))
 
   const isLoggedIn = computed(() => !!token.value)
 
@@ -22,6 +22,7 @@ export const useUserStore = defineStore('user', () => {
 
   const setUserInfo = (info: UserInfo) => {
     userInfo.value = info
+    localStorage.setItem('userInfo', JSON.stringify(info))
   }
 
   const login = async (username: string, password: string) => {
@@ -43,6 +44,7 @@ export const useUserStore = defineStore('user', () => {
     token.value = ''
     userInfo.value = null
     localStorage.removeItem('token')
+    localStorage.removeItem('userInfo')
   }
 
   return {

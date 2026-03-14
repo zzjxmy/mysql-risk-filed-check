@@ -7,6 +7,9 @@ import com.fieldcheck.service.ExecutionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +23,19 @@ import java.io.File;
 public class ExecutionController {
 
     private final ExecutionService executionService;
+
+    @GetMapping
+    public ApiResponse<Page<ExecutionDTO>> getAllExecutions(
+            @RequestParam(required = false) String taskName,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String triggerType,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<TaskExecution> executions = executionService.getAllExecutions(taskName, status, triggerType, pageRequest);
+        Page<ExecutionDTO> dtoPage = executions.map(executionService::toDTO);
+        return ApiResponse.success(dtoPage);
+    }
 
     @GetMapping("/{id}")
     public ApiResponse<ExecutionDTO> getExecution(@PathVariable Long id) {

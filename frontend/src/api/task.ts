@@ -63,8 +63,11 @@ export function stopTask(id: number) {
   return request.post(`/tasks/${id}/stop`)
 }
 
-export function getTaskExecutions(taskId: number, params?: { page?: number; size?: number }) {
-  return request.get(`/tasks/${taskId}/executions`, { params })
+export function getTaskExecutions(taskId?: number, params?: { page?: number; size?: number }) {
+  if (taskId) {
+    return request.get(`/tasks/${taskId}/executions`, { params })
+  }
+  return request.get('/executions', { params })
 }
 
 export function getExecution(id: number) {

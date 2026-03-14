@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -28,6 +29,7 @@ public class CheckEngine {
     private final WhitelistService whitelistService;
     private final RiskResultRepository riskResultRepository;
     private final TaskExecutionRepository executionRepository;
+    private final TransactionTemplate transactionTemplate;
 
     // 整型类型的最大值映射
     private static final Map<String, BigInteger> INT_MAX_VALUES = new HashMap<>();
@@ -136,9 +138,18 @@ public class CheckEngine {
         }
     }
     
-    @Transactional
     public void saveExecution(TaskExecution execution) {
-        executionRepository.save(execution);
+        transactionTemplate.execute(status -> {
+            TaskExecution freshExecution = executionRepository.findById(execution.getId())
+                    .orElseThrow(() -> new RuntimeException("执行记录不存在"));
+            if (execution.getTotalTables() > 0) {
+                freshExecution.setTotalTables(execution.getTotalTables());
+            }
+            freshExecution.setProcessedTables(execution.getProcessedTables());
+            freshExecution.setRiskCount(execution.getRiskCount());
+            executionRepository.save(freshExecution);
+            return null;
+        });
     }
 
     private List<String> getDatabases(Connection conn, String pattern) throws SQLException {
