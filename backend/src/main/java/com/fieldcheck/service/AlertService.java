@@ -206,8 +206,13 @@ public class AlertService {
 
         // Create dynamic mail sender from config
         JavaMailSenderImpl mailSender = createMailSender(configJson);
+        
+        // Get username for From address
+        String username = configJson.has("senderEmail") ? configJson.get("senderEmail").asText() : 
+                         (configJson.has("smtpUsername") ? configJson.get("smtpUsername").asText() : "");
 
         SimpleMailMessage mailMessage = new SimpleMailMessage();
+        mailMessage.setFrom(username);  // Set from address same as auth user
         mailMessage.setTo(recipients.split(","));
         mailMessage.setSubject("MySQL字段容量检查报告 - " + execution.getTask().getName());
         mailMessage.setText(message.replace("**", "").replace("##", ""));
@@ -224,8 +229,13 @@ public class AlertService {
 
         // Create dynamic mail sender from config
         JavaMailSenderImpl mailSender = createMailSender(configJson);
+        
+        // Get username for From address
+        String username = configJson.has("senderEmail") ? configJson.get("senderEmail").asText() : 
+                         (configJson.has("smtpUsername") ? configJson.get("smtpUsername").asText() : "");
 
         SimpleMailMessage mailMessage = new SimpleMailMessage();
+        mailMessage.setFrom(username);  // Set from address same as auth user
         mailMessage.setTo(recipients.split(","));
         mailMessage.setSubject("MySQL字段容量检查测试消息");
         mailMessage.setText(message.replace("**", "").replace("##", ""));
