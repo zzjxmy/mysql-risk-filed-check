@@ -17,8 +17,9 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.enabled" placeholder="全部" clearable>
-            <el-option label="启用" :value="true" />
-            <el-option label="禁用" :value="false" />
+            <el-option label="全部" value="" />
+            <el-option label="启用" value="true" />
+            <el-option label="禁用" value="false" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -111,7 +112,7 @@ const isEdit = ref(false)
 const formRef = ref<FormInstance>()
 
 const tableData = ref<Connection[]>([])
-const searchForm = reactive({ name: '', enabled: undefined as boolean | undefined })
+const searchForm = reactive({ name: '', enabled: '' })
 const pagination = reactive({ page: 1, size: 10, total: 0 })
 
 const form = reactive<Connection>({

@@ -11,6 +11,7 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="全部" clearable>
+            <el-option label="全部" value="" />
             <el-option label="待执行" value="PENDING" />
             <el-option label="执行中" value="RUNNING" />
             <el-option label="成功" value="SUCCESS" />
@@ -20,6 +21,7 @@
         </el-form-item>
         <el-form-item label="触发方式">
           <el-select v-model="searchForm.triggerType" placeholder="全部" clearable>
+            <el-option label="全部" value="" />
             <el-option label="手动" value="MANUAL" />
             <el-option label="定时调度" value="SCHEDULED" />
           </el-select>
@@ -137,8 +139,8 @@ const logContent = ref('')
 
 const searchForm = reactive({
   taskName: '',
-  status: undefined as string | undefined,
-  triggerType: undefined as string | undefined
+  status: '',
+  triggerType: ''
 })
 
 const pagination = reactive({
@@ -212,8 +214,8 @@ const fetchData = async () => {
 
 const resetSearch = () => {
   searchForm.taskName = ''
-  searchForm.status = undefined
-  searchForm.triggerType = undefined
+  searchForm.status = ''
+  searchForm.triggerType = ''
   pagination.page = 1
   fetchData()
 }

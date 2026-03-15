@@ -16,14 +16,16 @@
         </el-form-item>
         <el-form-item label="告警类型">
           <el-select v-model="searchForm.type" placeholder="全部" clearable>
+            <el-option label="全部" value="" />
             <el-option label="钉钉机器人" value="DINGTALK" />
             <el-option label="邮件" value="EMAIL" />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.enabled" placeholder="全部" clearable>
-            <el-option label="启用" :value="true" />
-            <el-option label="禁用" :value="false" />
+            <el-option label="全部" value="" />
+            <el-option label="启用" value="true" />
+            <el-option label="禁用" value="false" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -231,8 +233,8 @@ const formRef = ref<FormInstance>()
 
 const searchForm = reactive({
   name: '',
-  type: undefined as string | undefined,
-  enabled: undefined as boolean | undefined
+  type: '',
+  enabled: ''
 })
 
 const pagination = reactive({
@@ -293,8 +295,8 @@ const fetchAlerts = async () => {
 
 const resetSearch = () => {
   searchForm.name = ''
-  searchForm.type = undefined
-  searchForm.enabled = undefined
+  searchForm.type = ''
+  searchForm.enabled = ''
   pagination.page = 1
   fetchAlerts()
 }

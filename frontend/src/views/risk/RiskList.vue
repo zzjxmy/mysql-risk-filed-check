@@ -27,6 +27,7 @@
         </el-form-item>
         <el-form-item label="风险类型">
           <el-select v-model="searchForm.riskType" placeholder="全部" clearable>
+            <el-option label="全部" value="" />
             <el-option label="整型溢出" value="INT_OVERFLOW" />
             <el-option label="小数溢出" value="DECIMAL_OVERFLOW" />
             <el-option label="Y2038问题" value="Y2038" />
@@ -35,6 +36,7 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="全部" clearable>
+            <el-option label="全部" value="" />
             <el-option label="待处理" value="PENDING" />
             <el-option label="已忽略" value="IGNORED" />
             <el-option label="已解决" value="RESOLVED" />
@@ -122,8 +124,8 @@ const currentRisk = ref<RiskResult | null>(null)
 const searchForm = reactive({
   executionId: route.query.executionId ? Number(route.query.executionId) : undefined,
   databaseName: '',
-  riskType: undefined as string | undefined,
-  status: undefined as string | undefined
+  riskType: '',
+  status: ''
 })
 const pagination = reactive({ page: 1, size: 20, total: 0 })
 
@@ -138,8 +140,8 @@ const formatExecutionLabel = (execution: Execution) => {
 const resetSearch = () => {
   searchForm.executionId = undefined
   searchForm.databaseName = ''
-  searchForm.riskType = undefined
-  searchForm.status = undefined
+  searchForm.riskType = ''
+  searchForm.status = ''
   pagination.page = 1
   fetchData()
 }

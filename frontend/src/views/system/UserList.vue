@@ -16,14 +16,16 @@
         </el-form-item>
         <el-form-item label="角色">
           <el-select v-model="searchForm.role" placeholder="全部" clearable>
+            <el-option label="全部" value="" />
             <el-option label="管理员" value="ADMIN" />
             <el-option label="普通用户" value="USER" />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.enabled" placeholder="全部" clearable>
-            <el-option label="启用" :value="true" />
-            <el-option label="禁用" :value="false" />
+            <el-option label="全部" value="" />
+            <el-option label="启用" value="true" />
+            <el-option label="禁用" value="false" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -232,8 +234,8 @@ const currentUserId = ref<number>()
 
 const searchForm = reactive({
   username: '',
-  role: undefined as string | undefined,
-  enabled: undefined as boolean | undefined
+  role: '',
+  enabled: ''
 })
 
 const pagination = reactive({
@@ -310,8 +312,8 @@ const fetchUsers = async () => {
 
 const resetSearch = () => {
   searchForm.username = ''
-  searchForm.role = undefined
-  searchForm.enabled = undefined
+  searchForm.role = ''
+  searchForm.enabled = ''
   pagination.page = 1
   fetchUsers()
 }

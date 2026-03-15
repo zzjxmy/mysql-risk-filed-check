@@ -25,11 +25,15 @@ public class ConnectionController {
     @GetMapping
     public ApiResponse<Page<ConnectionDTO>> getConnections(
             @RequestParam(required = false) String name,
-            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(required = false) String enabled,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<DbConnection> connections = connectionService.getConnections(name, enabled, pageRequest);
+        Boolean enabledBool = null;
+        if (enabled != null && !enabled.isEmpty()) {
+            enabledBool = Boolean.parseBoolean(enabled);
+        }
+        Page<DbConnection> connections = connectionService.getConnections(name, enabledBool, pageRequest);
         Page<ConnectionDTO> dtoPage = connections.map(connectionService::toDTO);
         return ApiResponse.success(dtoPage);
     }

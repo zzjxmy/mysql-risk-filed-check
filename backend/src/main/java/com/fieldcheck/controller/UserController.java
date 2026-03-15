@@ -28,18 +28,23 @@ public class UserController {
     public ApiResponse<Page<SysUser>> getUsers(
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String role,
-            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(required = false) String enabled,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        
+        Boolean enabledBool = null;
+        if (enabled != null && !enabled.isEmpty()) {
+            enabledBool = Boolean.parseBoolean(enabled);
+        }
         
         Page<SysUser> users;
         if (username != null && !username.isEmpty()) {
             users = userRepository.findByUsernameContaining(username, pageRequest);
         } else if (role != null && !role.isEmpty()) {
             users = userRepository.findByRole(role, pageRequest);
-        } else if (enabled != null) {
-            users = userRepository.findByEnabled(enabled, pageRequest);
+        } else if (enabledBool != null) {
+            users = userRepository.findByEnabled(enabledBool, pageRequest);
         } else {
             users = userRepository.findAll(pageRequest);
         }

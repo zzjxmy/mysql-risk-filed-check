@@ -17,6 +17,7 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="全部" clearable>
+            <el-option label="全部" value="" />
             <el-option label="启用" value="ENABLED" />
             <el-option label="禁用" value="DISABLED" />
           </el-select>
@@ -68,7 +69,7 @@ import { getTasks, deleteTask, runTask, type Task } from '../../api/task'
 const router = useRouter()
 const loading = ref(false)
 const tableData = ref<Task[]>([])
-const searchForm = reactive({ name: '', status: undefined as string | undefined })
+const searchForm = reactive({ name: '', status: '' })
 const pagination = reactive({ page: 1, size: 10, total: 0 })
 
 const fetchData = async () => {

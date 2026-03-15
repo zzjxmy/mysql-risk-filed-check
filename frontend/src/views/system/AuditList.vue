@@ -12,6 +12,7 @@
         </el-form-item>
         <el-form-item label="操作类型">
           <el-select v-model="searchForm.action" placeholder="全部" clearable>
+            <el-option label="全部" value="" />
             <el-option
               v-for="action in actionTypes"
               :key="action"
@@ -164,7 +165,7 @@ const actionTypes = ref<string[]>([])
 
 const searchForm = reactive({
   username: '',
-  action: undefined as string | undefined,
+  action: '',
   dateRange: null as string[] | null
 })
 
@@ -235,7 +236,7 @@ const fetchActionTypes = async () => {
 
 const resetSearch = () => {
   searchForm.username = ''
-  searchForm.action = undefined
+  searchForm.action = ''
   searchForm.dateRange = null
   pagination.page = 1
   fetchLogs()
