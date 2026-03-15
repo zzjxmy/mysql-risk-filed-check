@@ -57,7 +57,7 @@
 ### 1. 克隆项目
 ```bash
 git clone <repository-url>
-cd Qorder
+cd mysql-risk-filed-check
 ```
 
 ### 2. 创建数据库
@@ -100,7 +100,7 @@ npm run dev
 ## 项目结构
 
 ```
-Qorder/
+mysql-risk-filed-check/
 ├── backend/                       # 后端项目
 │   ├── src/main/java/
 │   │   └── com/fieldcheck/
