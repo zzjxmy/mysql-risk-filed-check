@@ -80,7 +80,7 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="250" fixed="right">
           <template #default="{ row }">
             <el-button 
               v-if="row.status === 'RUNNING'" 
@@ -98,6 +98,10 @@
             <el-button type="primary" link @click="viewLog(row)">
               <el-icon><Document /></el-icon>
               日志
+            </el-button>
+            <el-button type="success" link @click="downloadLog(row)">
+              <el-icon><Download /></el-icon>
+              下载
             </el-button>
           </template>
         </el-table-column>
@@ -240,6 +244,34 @@ const viewLog = async (row: Execution) => {
     }
   } catch (error) {
     ElMessage.error('获取日志失败')
+  }
+}
+
+const downloadLog = async (row: Execution) => {
+  try {
+    const response = await fetch(`/api/executions/${row.id}/log/download`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error('下载失败')
+    }
+    
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `task_${row.taskId}_execution_${row.id}.log`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('下载成功')
+  } catch (error) {
+    ElMessage.error('下载失败')
   }
 }
 

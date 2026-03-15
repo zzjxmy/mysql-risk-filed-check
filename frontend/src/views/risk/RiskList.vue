@@ -45,6 +45,7 @@
         <el-form-item>
           <el-button type="primary" @click="fetchData">查询</el-button>
           <el-button @click="resetSearch">重置</el-button>
+          <el-button type="success" @click="handleExport" :loading="exportLoading">导出Excel</el-button>
         </el-form-item>
       </el-form>
 
@@ -116,6 +117,7 @@ import { getTaskExecutions, type Execution } from '../../api/task'
 
 const route = useRoute()
 const loading = ref(false)
+const exportLoading = ref(false)
 const tableData = ref<RiskResult[]>([])
 const executionList = ref<Execution[]>([])
 const detailVisible = ref(false)
@@ -165,6 +167,54 @@ const getStatusType = (status: string) => {
 const getStatusText = (status: string) => {
   const map: Record<string, string> = { PENDING: '待处理', IGNORED: '已忽略', RESOLVED: '已解决' }
   return map[status] || status
+}
+
+const handleExport = async () => {
+  exportLoading.value = true
+  try {
+    const params = new URLSearchParams()
+    if (searchForm.executionId) params.append('executionId', String(searchForm.executionId))
+    if (searchForm.databaseName) params.append('databaseName', searchForm.databaseName)
+    if (searchForm.riskType) params.append('riskType', searchForm.riskType)
+    if (searchForm.status) params.append('status', searchForm.status)
+    
+    const response = await fetch(`/api/risks/export?${params.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error('导出失败')
+    }
+    
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    
+    // Get filename from Content-Disposition header
+    const contentDisposition = response.headers.get('Content-Disposition')
+    let filename = `风险结果_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')}.xlsx`
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']+)/i)
+      if (filenameMatch && filenameMatch[1]) {
+        filename = decodeURIComponent(filenameMatch[1])
+      }
+    }
+    
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch (error) {
+    ElMessage.error('导出失败')
+  } finally {
+    exportLoading.value = false
+  }
 }
 
 const fetchData = async () => {

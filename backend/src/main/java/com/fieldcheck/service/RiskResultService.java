@@ -28,6 +28,11 @@ public class RiskResultService {
                                            RiskType riskType, RiskStatus status, Pageable pageable) {
         return riskResultRepository.findByConditions(executionId, databaseName, tableName, riskType, status, pageable);
     }
+    
+    public List<RiskResult> getAllRiskResults(Long executionId, String databaseName, String tableName,
+                                              RiskType riskType, RiskStatus status) {
+        return riskResultRepository.findByConditions(executionId, databaseName, tableName, riskType, status);
+    }
 
     public RiskResult getRiskResult(Long id) {
         return riskResultRepository.findById(id)

@@ -178,6 +178,13 @@ const pagination = reactive({
 const actionLabels: Record<string, string> = {
   'LOGIN': '登录',
   'LOGOUT': '登出',
+  'CREATE': '创建',
+  'UPDATE': '更新',
+  'DELETE': '删除',
+  'EXECUTE': '执行',
+  'STOP': '停止',
+  'TEST': '测试',
+  'OPERATION': '操作',
   'CREATE_CONNECTION': '创建连接',
   'UPDATE_CONNECTION': '更新连接',
   'DELETE_CONNECTION': '删除连接',
@@ -216,8 +223,8 @@ const fetchLogs = async () => {
     }
     
     const res = await request.get('/audit-logs', { params })
-    logList.value = res.data.content
-    pagination.total = res.data.totalElements
+    logList.value = res.content
+    pagination.total = res.totalElements
   } catch (error) {
     console.error('获取审计日志失败:', error)
   } finally {
@@ -228,7 +235,7 @@ const fetchLogs = async () => {
 const fetchActionTypes = async () => {
   try {
     const res = await request.get('/audit-logs/actions')
-    actionTypes.value = res.data
+    actionTypes.value = res || Object.keys(actionLabels)
   } catch (error) {
     actionTypes.value = Object.keys(actionLabels)
   }

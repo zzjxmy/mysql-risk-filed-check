@@ -2,7 +2,7 @@
   <el-container class="layout-container">
     <el-aside width="200px" class="aside">
       <div class="logo">
-        <span>字段容量检查</span>
+        <span>MySQL字段容量检查</span>
       </div>
       <el-menu
         :default-active="activeMenu"

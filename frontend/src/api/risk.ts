@@ -51,3 +51,20 @@ export function getRiskStats() {
 export function updateRiskStatus(id: number, status: string, remark?: string) {
   return request.put(`/risks/${id}/status`, { status, remark })
 }
+
+export function getRiskExportUrl(params?: {
+  executionId?: number
+  databaseName?: string
+  tableName?: string
+  riskType?: string
+  status?: string
+}) {
+  const query = new URLSearchParams()
+  if (params?.executionId) query.append('executionId', String(params.executionId))
+  if (params?.databaseName) query.append('databaseName', params.databaseName)
+  if (params?.tableName) query.append('tableName', params.tableName)
+  if (params?.riskType) query.append('riskType', params.riskType)
+  if (params?.status) query.append('status', params.status)
+  const queryString = query.toString()
+  return `/api/risks/export${queryString ? '?' + queryString : ''}`
+}

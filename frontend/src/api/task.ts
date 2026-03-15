@@ -81,3 +81,7 @@ export function getExecutionProgress(id: number) {
 export function getExecutionLog(id: number) {
   return request.get(`/executions/${id}/log`)
 }
+
+export function getExecutionLogDownloadUrl(id: number) {
+  return `/api/executions/${id}/log/download`
+}

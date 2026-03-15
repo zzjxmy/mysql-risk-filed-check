@@ -5,11 +5,13 @@ import com.fieldcheck.dto.LoginRequest;
 import com.fieldcheck.dto.LoginResponse;
 import com.fieldcheck.entity.SysUser;
 import com.fieldcheck.service.AuthService;
+import com.fieldcheck.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
 @RestController
@@ -18,13 +20,17 @@ import javax.validation.Valid;
 public class AuthController {
 
     private final AuthService authService;
+    private final AuditLogService auditLogService;
 
     @PostMapping("/login")
-    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request,
+                                           HttpServletRequest httpRequest) {
         try {
             LoginResponse response = authService.login(request);
+            auditLogService.logLogin(request.getUsername(), httpRequest, true, "登录成功");
             return ApiResponse.success(response);
         } catch (Exception e) {
+            auditLogService.logLogin(request.getUsername(), httpRequest, false, "登录失败: " + e.getMessage());
             return ApiResponse.error(401, "用户名或密码错误");
         }
     }
@@ -42,7 +48,8 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ApiResponse<Void> logout() {
+    public ApiResponse<Void> logout(HttpServletRequest request) {
+        auditLogService.logAsync("LOGOUT", "Auth", null, null, "用户登出", request);
         return ApiResponse.success("登出成功", null);
     }
 }

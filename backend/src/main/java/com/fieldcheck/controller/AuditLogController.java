@@ -51,6 +51,8 @@ public class AuditLogController {
     public ResponseEntity<String[]> getActionTypes() {
         String[] actions = {
             "LOGIN", "LOGOUT",
+            "CREATE", "UPDATE", "DELETE",
+            "EXECUTE", "STOP", "TEST", "OPERATION",
             "CREATE_CONNECTION", "UPDATE_CONNECTION", "DELETE_CONNECTION", "TEST_CONNECTION",
             "CREATE_TASK", "UPDATE_TASK", "DELETE_TASK", "EXECUTE_TASK", "STOP_TASK",
             "CREATE_WHITELIST", "UPDATE_WHITELIST", "DELETE_WHITELIST",

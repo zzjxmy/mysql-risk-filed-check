@@ -37,6 +37,18 @@ public interface RiskResultRepository extends JpaRepository<RiskResult, Long> {
                                       @Param("status") RiskStatus status,
                                       Pageable pageable);
     
+    @Query("SELECT r FROM RiskResult r WHERE " +
+           "(:executionId IS NULL OR r.execution.id = :executionId) AND " +
+           "(:databaseName IS NULL OR r.databaseName LIKE %:databaseName%) AND " +
+           "(:tableName IS NULL OR r.tableName LIKE %:tableName%) AND " +
+           "(:riskType IS NULL OR r.riskType = :riskType) AND " +
+           "(:status IS NULL OR r.status = :status)")
+    List<RiskResult> findByConditions(@Param("executionId") Long executionId,
+                                      @Param("databaseName") String databaseName,
+                                      @Param("tableName") String tableName,
+                                      @Param("riskType") RiskType riskType,
+                                      @Param("status") RiskStatus status);
+    
     @Query("SELECT r.riskType, COUNT(r) FROM RiskResult r WHERE r.execution.id = :executionId GROUP BY r.riskType")
     List<Object[]> countByRiskTypeForExecution(@Param("executionId") Long executionId);
     
