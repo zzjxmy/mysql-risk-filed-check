@@ -53,10 +53,10 @@
         <el-table-column label="配置详情" min-width="200">
           <template #default="{ row }">
             <span v-if="row.alertType === 'DINGTALK'">
-              Webhook: {{ maskWebhook(getConfigValue(row.config, 'webhook')) }}
+              Webhook: {{ maskWebhook(getConfigValue('webhook', row.config)) }}
             </span>
             <span v-else>
-              收件人: {{ getConfigValue(row.config, 'emailRecipients') }}
+              收件人: {{ getConfigValue('emailRecipients', row.config) }}
             </span>
           </template>
         </el-table-column>
@@ -457,7 +457,7 @@ const maskWebhook = (url?: string) => {
   return url
 }
 
-const getConfigValue = (configJson?: string, key: string): string => {
+const getConfigValue = (key: string, configJson?: string): string => {
   if (!configJson) return ''
   try {
     const config = JSON.parse(configJson)
