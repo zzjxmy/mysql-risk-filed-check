@@ -23,6 +23,7 @@ public class TaskService {
     private final CheckTaskRepository taskRepository;
     private final DbConnectionRepository connectionRepository;
     private final AlertConfigRepository alertConfigRepository;
+    private final TaskAlertConfigRepository taskAlertConfigRepository;
     private final SysUserRepository userRepository;
     private final TaskExecutionRepository executionRepository;
 
@@ -47,14 +48,6 @@ public class TaskService {
         DbConnection connection = connectionRepository.findById(dto.getConnectionId())
                 .orElseThrow(() -> new RuntimeException("数据库连接不存在"));
 
-        Set<AlertConfig> alertConfigs = new HashSet<>();
-        if (dto.getAlertConfigIds() != null && !dto.getAlertConfigIds().isEmpty()) {
-            alertConfigs = dto.getAlertConfigIds().stream()
-                    .map(id -> alertConfigRepository.findById(id)
-                            .orElseThrow(() -> new RuntimeException("告警配置不存在: " + id)))
-                    .collect(Collectors.toSet());
-        }
-
         CheckTask task = CheckTask.builder()
                 .name(dto.getName())
                 .connection(connection)
@@ -70,10 +63,24 @@ public class TaskService {
                 .cronExpression(dto.getCronExpression())
                 .status(dto.getStatus() != null ? dto.getStatus() : TaskStatus.ENABLED)
                 .createdBy(user)
-                .alertConfigs(alertConfigs)
                 .build();
 
-        return taskRepository.save(task);
+        task = taskRepository.save(task);
+
+        // Save alert config associations
+        if (dto.getAlertConfigIds() != null && !dto.getAlertConfigIds().isEmpty()) {
+            for (Long alertConfigId : dto.getAlertConfigIds()) {
+                AlertConfig alertConfig = alertConfigRepository.findById(alertConfigId)
+                        .orElseThrow(() -> new RuntimeException("告警配置不存在: " + alertConfigId));
+                TaskAlertConfig association = TaskAlertConfig.builder()
+                        .task(task)
+                        .alertConfig(alertConfig)
+                        .build();
+                taskAlertConfigRepository.save(association);
+            }
+        }
+
+        return task;
     }
 
     @Transactional
@@ -103,11 +110,19 @@ public class TaskService {
         if (dto.getStatus() != null) task.setStatus(dto.getStatus());
 
         if (dto.getAlertConfigIds() != null) {
-            Set<AlertConfig> alertConfigs = dto.getAlertConfigIds().stream()
-                    .map(alertId -> alertConfigRepository.findById(alertId)
-                            .orElseThrow(() -> new RuntimeException("告警配置不存在: " + alertId)))
-                    .collect(Collectors.toSet());
-            task.setAlertConfigs(alertConfigs);
+            // Delete existing associations
+            taskAlertConfigRepository.deleteByTaskId(task.getId());
+            
+            // Create new associations
+            for (Long alertConfigId : dto.getAlertConfigIds()) {
+                AlertConfig alertConfig = alertConfigRepository.findById(alertConfigId)
+                        .orElseThrow(() -> new RuntimeException("告警配置不存在: " + alertConfigId));
+                TaskAlertConfig association = TaskAlertConfig.builder()
+                        .task(task)
+                        .alertConfig(alertConfig)
+                        .build();
+                taskAlertConfigRepository.save(association);
+            }
         }
 
         return taskRepository.save(task);
@@ -141,11 +156,21 @@ public class TaskService {
         dto.setCustomWhitelist(task.getCustomWhitelist());
         dto.setCronExpression(task.getCronExpression());
         dto.setStatus(task.getStatus());
-        if (task.getAlertConfigs() != null) {
-            dto.setAlertConfigIds(task.getAlertConfigs().stream()
-                    .map(AlertConfig::getId)
-                    .collect(Collectors.toSet()));
-        }
+        
+        // Get alert config IDs from association table
+        List<TaskAlertConfig> associations = taskAlertConfigRepository.findByTaskId(task.getId());
+        dto.setAlertConfigIds(associations.stream()
+                .map(tac -> tac.getAlertConfig().getId())
+                .collect(Collectors.toSet()));
+        
         return dto;
+    }
+    
+    public List<AlertConfig> getTaskAlertConfigs(Long taskId) {
+        List<TaskAlertConfig> associations = taskAlertConfigRepository.findByTaskId(taskId);
+        return associations.stream()
+                .map(TaskAlertConfig::getAlertConfig)
+                .filter(AlertConfig::getEnabled)
+                .collect(Collectors.toList());
     }
 }

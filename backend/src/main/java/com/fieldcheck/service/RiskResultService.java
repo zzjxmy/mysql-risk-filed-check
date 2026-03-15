@@ -56,6 +56,14 @@ public class RiskResultService {
             risksByType.put(type.name(), 0L);
         }
         
+        // Query actual counts from database
+        List<Object[]> typeCounts = riskResultRepository.countByRiskType();
+        for (Object[] row : typeCounts) {
+            RiskType type = (RiskType) row[0];
+            Long count = ((Number) row[1]).longValue();
+            risksByType.put(type.name(), count);
+        }
+        
         // Get recent risks for trend
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
         List<Object[]> trendData = riskResultRepository.getRiskTrend(thirtyDaysAgo);

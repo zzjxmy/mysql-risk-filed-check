@@ -164,7 +164,7 @@ const actionTypes = ref<string[]>([])
 
 const searchForm = reactive({
   username: '',
-  action: '',
+  action: undefined as string | undefined,
   dateRange: null as string[] | null
 })
 
@@ -235,7 +235,7 @@ const fetchActionTypes = async () => {
 
 const resetSearch = () => {
   searchForm.username = ''
-  searchForm.action = ''
+  searchForm.action = undefined
   searchForm.dateRange = null
   pagination.page = 1
   fetchLogs()

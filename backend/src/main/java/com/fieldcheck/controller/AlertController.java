@@ -17,8 +17,11 @@ public class AlertController {
     private final AlertService alertService;
 
     @GetMapping
-    public ApiResponse<List<AlertConfig>> getAllConfigs() {
-        return ApiResponse.success(alertService.getAllConfigs());
+    public ApiResponse<List<AlertConfig>> getAllConfigs(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Boolean enabled) {
+        return ApiResponse.success(alertService.getAllConfigs(name, type, enabled));
     }
 
     @GetMapping("/enabled")

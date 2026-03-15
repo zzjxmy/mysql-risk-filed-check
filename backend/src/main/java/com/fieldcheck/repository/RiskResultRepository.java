@@ -51,4 +51,7 @@ public interface RiskResultRepository extends JpaRepository<RiskResult, Long> {
     
     @Query("SELECT DATE(r.createdAt), COUNT(r) FROM RiskResult r WHERE r.createdAt >= :startTime GROUP BY DATE(r.createdAt) ORDER BY DATE(r.createdAt)")
     List<Object[]> getRiskTrend(@Param("startTime") LocalDateTime startTime);
+    
+    @Query("SELECT r.riskType, COUNT(r) FROM RiskResult r GROUP BY r.riskType")
+    List<Object[]> countByRiskType();
 }

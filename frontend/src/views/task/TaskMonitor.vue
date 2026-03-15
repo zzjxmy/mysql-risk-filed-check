@@ -57,7 +57,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import SockJS from 'sockjs-client'
 import Stomp from 'stompjs'
-import { getTaskExecutions, stopTask, type Execution } from '../../api/task'
+import { getTaskExecutions, stopTask, getExecutionLog, type Execution } from '../../api/task'
 
 const route = useRoute()
 const taskId = Number(route.params.id)
@@ -138,7 +138,14 @@ const fetchExecution = async () => {
     if (res.code === 200 && res.data.content.length > 0) {
       execution.value = res.data.content[0]
       console.log('Execution fetched:', execution.value)
-      if (execution.value.status === 'RUNNING' && !stompClient) {
+      
+      // Load historical logs first
+      if (logs.value.length === 0) {
+        await loadHistoricalLogs(execution.value.id)
+      }
+      
+      // Connect WebSocket for real-time logs if task is running
+      if ((execution.value.status === 'RUNNING' || execution.value.status === 'PENDING') && !stompClient) {
         connectWebSocket(execution.value.id)
       }
     } else {
@@ -148,6 +155,30 @@ const fetchExecution = async () => {
     console.error('Failed to fetch execution:', error)
   } finally {
     loading.value = false
+  }
+}
+
+const loadHistoricalLogs = async (executionId: number) => {
+  try {
+    const res = await getExecutionLog(executionId)
+    if (res.code === 200 && res.data) {
+      // Parse log file content
+      const lines = res.data.split('\n').filter((line: string) => line.trim())
+      lines.forEach((line: string) => {
+        // Parse format: [2026-03-14 10:46:27] [INFO] message
+        const match = line.match(/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] \[(\w+)\] (.+)$/)
+        if (match) {
+          logs.value.push({
+            timestamp: match[1],
+            level: match[2],
+            message: match[3]
+          })
+        }
+      })
+      nextTick(() => scrollToBottom())
+    }
+  } catch (error) {
+    console.error('Failed to load historical logs:', error)
   }
 }
 

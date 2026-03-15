@@ -59,9 +59,9 @@
             />
           </template>
         </el-table-column>
-        <el-table-column prop="lastLoginAt" label="最后登录" width="180">
+        <el-table-column prop="lastLoginTime" label="最后登录" width="180">
           <template #default="{ row }">
-            {{ formatDate(row.lastLoginAt) || '从未登录' }}
+            {{ formatDate(row.lastLoginTime) || '从未登录' }}
           </template>
         </el-table-column>
         <el-table-column prop="createdAt" label="创建时间" width="180">
@@ -213,7 +213,7 @@ interface User {
   email: string
   role: 'ADMIN' | 'USER'
   enabled: boolean
-  lastLoginAt?: string
+  lastLoginTime?: string
   createdAt?: string
   statusLoading?: boolean
 }
@@ -232,8 +232,8 @@ const currentUserId = ref<number>()
 
 const searchForm = reactive({
   username: '',
-  role: '',
-  enabled: null as boolean | null
+  role: undefined as string | undefined,
+  enabled: undefined as boolean | undefined
 })
 
 const pagination = reactive({
@@ -310,8 +310,8 @@ const fetchUsers = async () => {
 
 const resetSearch = () => {
   searchForm.username = ''
-  searchForm.role = ''
-  searchForm.enabled = null
+  searchForm.role = undefined
+  searchForm.enabled = undefined
   pagination.page = 1
   fetchUsers()
 }

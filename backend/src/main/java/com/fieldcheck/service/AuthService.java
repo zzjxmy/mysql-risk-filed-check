@@ -15,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import java.time.LocalDateTime;
 
 @Slf4j
 @Service
@@ -54,6 +55,10 @@ public class AuthService {
 
         SysUser user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Update last login time
+        user.setLastLoginTime(LocalDateTime.now());
+        userRepository.save(user);
 
         String token = tokenProvider.generateToken(user.getUsername(), user.getRole().name());
 

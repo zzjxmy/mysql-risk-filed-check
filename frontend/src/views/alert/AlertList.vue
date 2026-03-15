@@ -231,8 +231,8 @@ const formRef = ref<FormInstance>()
 
 const searchForm = reactive({
   name: '',
-  type: '',
-  enabled: null as boolean | null
+  type: undefined as string | undefined,
+  enabled: undefined as boolean | undefined
 })
 
 const pagination = reactive({
@@ -293,8 +293,8 @@ const fetchAlerts = async () => {
 
 const resetSearch = () => {
   searchForm.name = ''
-  searchForm.type = ''
-  searchForm.enabled = null
+  searchForm.type = undefined
+  searchForm.enabled = undefined
   pagination.page = 1
   fetchAlerts()
 }

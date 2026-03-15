@@ -7,6 +7,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
+import java.time.LocalDateTime;
 
 @Data
 @Entity
@@ -36,4 +37,7 @@ public class SysUser extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private Boolean enabled = true;
+
+    @Column(name = "last_login_time")
+    private LocalDateTime lastLoginTime;
 }

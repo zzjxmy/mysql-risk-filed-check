@@ -16,7 +16,7 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "check_task")
-@EqualsAndHashCode(callSuper = true, exclude = {"connection", "createdBy", "alertConfigs"})
+@EqualsAndHashCode(callSuper = true, exclude = {"connection", "createdBy"})
 public class CheckTask extends BaseEntity {
 
     @Column(nullable = false, length = 200)
@@ -71,13 +71,4 @@ public class CheckTask extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private SysUser createdBy;
-
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "task_alert_relation",
-        joinColumns = @JoinColumn(name = "task_id"),
-        inverseJoinColumns = @JoinColumn(name = "alert_id")
-    )
-    @Builder.Default
-    private Set<AlertConfig> alertConfigs = new HashSet<>();
 }

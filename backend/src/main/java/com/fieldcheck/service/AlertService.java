@@ -15,7 +15,7 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +24,8 @@ import javax.crypto.spec.SecretKeySpec;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Properties;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -31,11 +33,34 @@ import java.util.List;
 public class AlertService {
 
     private final AlertConfigRepository alertConfigRepository;
-    private final JavaMailSender mailSender;
     private final ObjectMapper objectMapper;
 
-    public List<AlertConfig> getAllConfigs() {
-        return alertConfigRepository.findAll();
+    public List<AlertConfig> getAllConfigs(String name, String type, Boolean enabled) {
+        List<AlertConfig> configs = alertConfigRepository.findAll();
+        
+        return configs.stream()
+                .filter(config -> {
+                    // Filter by name
+                    if (name != null && !name.isEmpty()) {
+                        if (!config.getName().toLowerCase().contains(name.toLowerCase())) {
+                            return false;
+                        }
+                    }
+                    // Filter by type
+                    if (type != null && !type.isEmpty()) {
+                        if (!config.getAlertType().name().equals(type)) {
+                            return false;
+                        }
+                    }
+                    // Filter by enabled status
+                    if (enabled != null) {
+                        if (config.getEnabled() != enabled) {
+                            return false;
+                        }
+                    }
+                    return true;
+                })
+                .collect(Collectors.toList());
     }
 
     public List<AlertConfig> getEnabledConfigs() {
@@ -179,6 +204,9 @@ public class AlertService {
                 configJson.get("emailRecipients").asText() : 
                 configJson.get("recipients").asText();
 
+        // Create dynamic mail sender from config
+        JavaMailSenderImpl mailSender = createMailSender(configJson);
+
         SimpleMailMessage mailMessage = new SimpleMailMessage();
         mailMessage.setTo(recipients.split(","));
         mailMessage.setSubject("MySQL字段容量检查报告 - " + execution.getTask().getName());
@@ -194,6 +222,9 @@ public class AlertService {
                 configJson.get("emailRecipients").asText() : 
                 configJson.get("recipients").asText();
 
+        // Create dynamic mail sender from config
+        JavaMailSenderImpl mailSender = createMailSender(configJson);
+
         SimpleMailMessage mailMessage = new SimpleMailMessage();
         mailMessage.setTo(recipients.split(","));
         mailMessage.setSubject("MySQL字段容量检查测试消息");
@@ -201,5 +232,32 @@ public class AlertService {
 
         mailSender.send(mailMessage);
         log.info("Test email alert sent successfully to {}", recipients);
+    }
+
+    private JavaMailSenderImpl createMailSender(JsonNode configJson) {
+        JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
+        
+        // Get SMTP settings from config or use defaults
+        String host = configJson.has("smtpHost") ? configJson.get("smtpHost").asText() : "smtp.example.com";
+        int port = configJson.has("smtpPort") ? configJson.get("smtpPort").asInt() : 587;
+        // Support both senderEmail (frontend naming) and smtpUsername
+        String username = configJson.has("senderEmail") ? configJson.get("senderEmail").asText() : 
+                         (configJson.has("smtpUsername") ? configJson.get("smtpUsername").asText() : "");
+        // Support both senderPassword (frontend naming) and smtpPassword
+        String password = configJson.has("senderPassword") ? configJson.get("senderPassword").asText() :
+                         (configJson.has("smtpPassword") ? configJson.get("smtpPassword").asText() : "");
+        
+        mailSender.setHost(host);
+        mailSender.setPort(port);
+        mailSender.setUsername(username);
+        mailSender.setPassword(password);
+        
+        Properties props = mailSender.getJavaMailProperties();
+        props.put("mail.transport.protocol", "smtp");
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.starttls.enable", "true");
+        props.put("mail.debug", "false");
+        
+        return mailSender;
     }
 }

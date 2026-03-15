@@ -38,6 +38,8 @@ public class ExecutionService {
     private final CheckTaskRepository taskRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final CheckEngine checkEngine;
+    private final AlertService alertService;
+    private final TaskService taskService;
 
     @Value("${app.log-path:./logs/executions}")
     private String logPath;
@@ -163,6 +165,23 @@ public class ExecutionService {
         } finally {
             execution.setEndTime(LocalDateTime.now());
             executionRepository.save(execution);
+            
+            // Send alert if there are risks or task failed
+            if (execution.getRiskCount() > 0 || execution.getStatus() == ExecutionStatus.FAILED) {
+                try {
+                    // Get task-specific alert configs
+                    List<com.fieldcheck.entity.AlertConfig> configs = taskService.getTaskAlertConfigs(task.getId());
+                    if (!configs.isEmpty()) {
+                        alertService.sendAlert(execution, configs);
+                        log.info("Alert sent for execution {} using {} configs", execution.getId(), configs.size());
+                    } else {
+                        log.info("No alert configs associated with task {}, skipping alert", task.getId());
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to send alert for execution {}: {}", execution.getId(), e.getMessage());
+                }
+            }
+            
             runningTasks.remove(task.getId());
         }
     }

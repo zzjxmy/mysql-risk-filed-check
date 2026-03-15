@@ -137,8 +137,8 @@ const logContent = ref('')
 
 const searchForm = reactive({
   taskName: '',
-  status: '',
-  triggerType: ''
+  status: undefined as string | undefined,
+  triggerType: undefined as string | undefined
 })
 
 const pagination = reactive({
@@ -212,8 +212,8 @@ const fetchData = async () => {
 
 const resetSearch = () => {
   searchForm.taskName = ''
-  searchForm.status = ''
-  searchForm.triggerType = ''
+  searchForm.status = undefined
+  searchForm.triggerType = undefined
   pagination.page = 1
   fetchData()
 }

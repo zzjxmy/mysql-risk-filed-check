@@ -122,8 +122,8 @@ const currentRisk = ref<RiskResult | null>(null)
 const searchForm = reactive({
   executionId: route.query.executionId ? Number(route.query.executionId) : undefined,
   databaseName: '',
-  riskType: '',
-  status: ''
+  riskType: undefined as string | undefined,
+  status: undefined as string | undefined
 })
 const pagination = reactive({ page: 1, size: 20, total: 0 })
 
@@ -138,8 +138,8 @@ const formatExecutionLabel = (execution: Execution) => {
 const resetSearch = () => {
   searchForm.executionId = undefined
   searchForm.databaseName = ''
-  searchForm.riskType = ''
-  searchForm.status = ''
+  searchForm.riskType = undefined
+  searchForm.status = undefined
   pagination.page = 1
   fetchData()
 }

@@ -68,7 +68,7 @@ import { getTasks, deleteTask, runTask, type Task } from '../../api/task'
 const router = useRouter()
 const loading = ref(false)
 const tableData = ref<Task[]>([])
-const searchForm = reactive({ name: '', status: '' })
+const searchForm = reactive({ name: '', status: undefined as string | undefined })
 const pagination = reactive({ page: 1, size: 10, total: 0 })
 
 const fetchData = async () => {

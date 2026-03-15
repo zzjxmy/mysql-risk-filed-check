@@ -166,6 +166,19 @@ CREATE TABLE `whitelist_rule` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Create syntax for TABLE 'task_alert_config' (任务与告警配置关联表)
+CREATE TABLE `task_alert_config` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `task_id` bigint(20) NOT NULL,
+  `alert_config_id` bigint(20) NOT NULL,
+  `created_at` datetime(6) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_task_alert` (`task_id`, `alert_config_id`),
+  KEY `idx_alert_config_id` (`alert_config_id`),
+  CONSTRAINT `FK_task_alert_task` FOREIGN KEY (`task_id`) REFERENCES `check_task` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_task_alert_config` FOREIGN KEY (`alert_config_id`) REFERENCES `alert_config` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 插入默认管理员用户（密码：admin123，BCrypt加密）
 INSERT INTO `sys_user` (`created_at`, `updated_at`, `email`, `enabled`, `nickname`, `password`, `role`, `username`)
 VALUES
