@@ -57,10 +57,11 @@ import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import SockJS from 'sockjs-client'
 import Stomp from 'stompjs'
-import { getTaskExecutions, stopTask, getExecutionLog, type Execution } from '../../api/task'
+import { getTaskExecutions, stopTask, getExecutionLog, getExecution, type Execution } from '../../api/task'
 
 const route = useRoute()
 const taskId = Number(route.params.id)
+const executionIdFromQuery = route.query.executionId ? Number(route.query.executionId) : null
 const execution = ref<Execution | null>(null)
 const logs = ref<Array<{ timestamp: string; level: string; message: string }>>([])
 const logContainerRef = ref<HTMLDivElement>()
@@ -134,22 +135,42 @@ const handleStop = async () => {
 
 const fetchExecution = async () => {
   try {
-    const res = await getTaskExecutions(taskId, { page: 0, size: 1 })
-    if (res.code === 200 && res.data.content.length > 0) {
-      execution.value = res.data.content[0]
-      console.log('Execution fetched:', execution.value)
-      
-      // Load historical logs first
-      if (logs.value.length === 0) {
-        await loadHistoricalLogs(execution.value.id)
-      }
-      
-      // Connect WebSocket for real-time logs if task is running
-      if ((execution.value.status === 'RUNNING' || execution.value.status === 'PENDING') && !stompClient) {
-        connectWebSocket(execution.value.id)
+    // If execution ID is provided in URL, use it directly
+    if (executionIdFromQuery) {
+      const res = await getExecution(executionIdFromQuery)
+      if (res.code === 200) {
+        execution.value = res.data
+        console.log('Execution fetched by ID:', execution.value)
+        
+        // Load historical logs first
+        if (logs.value.length === 0) {
+          await loadHistoricalLogs(execution.value.id)
+        }
+        
+        // Connect WebSocket for real-time logs if task is running
+        if ((execution.value.status === 'RUNNING' || execution.value.status === 'PENDING') && !stompClient) {
+          connectWebSocket(execution.value.id)
+        }
       }
     } else {
-      console.log('No execution found for task', taskId)
+      // Otherwise, get the latest execution for this task
+      const res = await getTaskExecutions(taskId, { page: 0, size: 1 })
+      if (res.code === 200 && res.data.content.length > 0) {
+        execution.value = res.data.content[0]
+        console.log('Execution fetched:', execution.value)
+        
+        // Load historical logs first
+        if (logs.value.length === 0) {
+          await loadHistoricalLogs(execution.value.id)
+        }
+        
+        // Connect WebSocket for real-time logs if task is running
+        if ((execution.value.status === 'RUNNING' || execution.value.status === 'PENDING') && !stompClient) {
+          connectWebSocket(execution.value.id)
+        }
+      } else {
+        console.log('No execution found for task', taskId)
+      }
     }
   } catch (error) {
     console.error('Failed to fetch execution:', error)

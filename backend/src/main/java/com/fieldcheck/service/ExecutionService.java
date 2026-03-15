@@ -8,9 +8,10 @@ import com.fieldcheck.entity.TaskExecution;
 import com.fieldcheck.engine.CheckEngine;
 import com.fieldcheck.repository.CheckTaskRepository;
 import com.fieldcheck.repository.TaskExecutionRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -31,7 +32,6 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ExecutionService {
 
     private final TaskExecutionRepository executionRepository;
@@ -40,11 +40,31 @@ public class ExecutionService {
     private final CheckEngine checkEngine;
     private final AlertService alertService;
     private final TaskService taskService;
+    
+    // Self-injection to enable @Async proxy
+    @Autowired
+    @Lazy
+    private ExecutionService self;
 
     @Value("${app.log-path:./logs/executions}")
     private String logPath;
 
     private final Map<Long, Boolean> runningTasks = new ConcurrentHashMap<>();
+    
+    @Autowired
+    public ExecutionService(TaskExecutionRepository executionRepository,
+                           CheckTaskRepository taskRepository,
+                           SimpMessagingTemplate messagingTemplate,
+                           CheckEngine checkEngine,
+                           AlertService alertService,
+                           TaskService taskService) {
+        this.executionRepository = executionRepository;
+        this.taskRepository = taskRepository;
+        this.messagingTemplate = messagingTemplate;
+        this.checkEngine = checkEngine;
+        this.alertService = alertService;
+        this.taskService = taskService;
+    }
 
     public Page<TaskExecution> getExecutionsByTask(Long taskId, Pageable pageable) {
         return executionRepository.findByTaskId(taskId, pageable);
@@ -84,7 +104,6 @@ public class ExecutionService {
                 .orElseThrow(() -> new RuntimeException("执行记录不存在"));
     }
 
-    @Transactional
     public TaskExecution startExecution(Long taskId, String triggerType) {
         CheckTask task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("任务不存在"));
@@ -125,30 +144,34 @@ public class ExecutionService {
 
         TaskExecution execution = TaskExecution.builder()
                 .task(task)
-                .status(ExecutionStatus.PENDING)
+                .status(ExecutionStatus.RUNNING)  // Set to RUNNING immediately
+                .startTime(LocalDateTime.now())
                 .triggerType(triggerType)
                 .logPath(logFilePath.toString())
                 .build();
 
-        execution = executionRepository.save(execution);
+        execution = executionRepository.saveAndFlush(execution);
+        log.info("Execution record created: id={}, status={}, logPath={}", execution.getId(), execution.getStatus(), execution.getLogPath());
 
-        // Start async execution
+        // Start async execution using self-injection to enable @Async proxy
         runningTasks.put(taskId, true);
-        executeAsync(execution.getId());
+        log.info("Starting async execution for executionId={}", execution.getId());
+        self.executeAsync(execution.getId());
+        log.info("Async execution started for executionId={}", execution.getId());
 
         return execution;
     }
 
     @Async("taskExecutor")
     public void executeAsync(Long executionId) {
-        TaskExecution execution = getExecution(executionId);
+        log.info("executeAsync called for executionId={} on thread={}", executionId, Thread.currentThread().getName());
+        // Use JOIN FETCH to load task eagerly to avoid LazyInitializationException
+        TaskExecution execution = executionRepository.findByIdWithTask(executionId)
+                .orElseThrow(() -> new RuntimeException("执行记录不存在"));
         CheckTask task = execution.getTask();
         
         try {
-            execution.setStatus(ExecutionStatus.RUNNING);
-            execution.setStartTime(LocalDateTime.now());
-            executionRepository.save(execution);
-
+            // Status is already set to RUNNING in startExecution
             sendLog(executionId, "INFO|开始执行任务: " + task.getName());
 
             // Execute check engine

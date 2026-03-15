@@ -34,4 +34,7 @@ public interface TaskExecutionRepository extends JpaRepository<TaskExecution, Lo
     
     @Query("SELECT e FROM TaskExecution e WHERE e.startTime >= :startTime")
     List<TaskExecution> findRecentExecutions(@Param("startTime") LocalDateTime startTime);
+    
+    @Query("SELECT e FROM TaskExecution e JOIN FETCH e.task t JOIN FETCH t.connection WHERE e.id = :id")
+    Optional<TaskExecution> findByIdWithTask(@Param("id") Long id);
 }

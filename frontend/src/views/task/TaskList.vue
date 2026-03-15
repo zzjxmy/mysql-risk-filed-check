@@ -16,7 +16,7 @@
           <el-input v-model="searchForm.name" placeholder="请输入" clearable />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="全部" clearable>
+          <el-select v-model="searchForm.status" placeholder="全部" clearable style="width: 120px">
             <el-option label="全部" value="" />
             <el-option label="启用" value="ENABLED" />
             <el-option label="禁用" value="DISABLED" />
@@ -95,7 +95,13 @@ const handleRun = async (row: Task) => {
     const res = await runTask(row.id!)
     if (res.code === 200) {
       ElMessage.success('任务已启动')
-      router.push(`/tasks/${row.id}/monitor`)
+      // Jump to monitor page with execution ID
+      const executionId = res.data?.id
+      if (executionId) {
+        router.push({ path: `/tasks/${row.id}/monitor`, query: { executionId } })
+      } else {
+        router.push(`/tasks/${row.id}/monitor`)
+      }
     }
   } catch (error: any) {
     ElMessage.error(error.message || '启动失败')

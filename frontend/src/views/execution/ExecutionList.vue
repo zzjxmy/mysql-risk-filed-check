@@ -10,7 +10,7 @@
           <el-input v-model="searchForm.taskName" placeholder="请输入任务名称" clearable />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="全部" clearable>
+          <el-select v-model="searchForm.status" placeholder="全部" clearable style="width: 120px">
             <el-option label="全部" value="" />
             <el-option label="待执行" value="PENDING" />
             <el-option label="执行中" value="RUNNING" />
@@ -20,7 +20,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="触发方式">
-          <el-select v-model="searchForm.triggerType" placeholder="全部" clearable>
+          <el-select v-model="searchForm.triggerType" placeholder="全部" clearable style="width: 120px">
             <el-option label="全部" value="" />
             <el-option label="手动" value="MANUAL" />
             <el-option label="定时调度" value="SCHEDULED" />

@@ -26,7 +26,7 @@
           <el-input v-model="searchForm.databaseName" placeholder="请输入" clearable />
         </el-form-item>
         <el-form-item label="风险类型">
-          <el-select v-model="searchForm.riskType" placeholder="全部" clearable>
+          <el-select v-model="searchForm.riskType" placeholder="全部" clearable style="width: 140px">
             <el-option label="全部" value="" />
             <el-option label="整型溢出" value="INT_OVERFLOW" />
             <el-option label="小数溢出" value="DECIMAL_OVERFLOW" />
@@ -35,7 +35,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="全部" clearable>
+          <el-select v-model="searchForm.status" placeholder="全部" clearable style="width: 120px">
             <el-option label="全部" value="" />
             <el-option label="待处理" value="PENDING" />
             <el-option label="已忽略" value="IGNORED" />

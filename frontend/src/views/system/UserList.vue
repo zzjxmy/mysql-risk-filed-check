@@ -15,14 +15,14 @@
           <el-input v-model="searchForm.username" placeholder="请输入用户名" clearable />
         </el-form-item>
         <el-form-item label="角色">
-          <el-select v-model="searchForm.role" placeholder="全部" clearable>
+          <el-select v-model="searchForm.role" placeholder="全部" clearable style="width: 120px">
             <el-option label="全部" value="" />
             <el-option label="管理员" value="ADMIN" />
             <el-option label="普通用户" value="USER" />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="searchForm.enabled" placeholder="全部" clearable>
+          <el-select v-model="searchForm.enabled" placeholder="全部" clearable style="width: 120px">
             <el-option label="全部" value="" />
             <el-option label="启用" value="true" />
             <el-option label="禁用" value="false" />

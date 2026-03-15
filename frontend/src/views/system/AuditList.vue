@@ -11,7 +11,7 @@
           <el-input v-model="searchForm.username" placeholder="请输入用户名" clearable />
         </el-form-item>
         <el-form-item label="操作类型">
-          <el-select v-model="searchForm.action" placeholder="全部" clearable>
+          <el-select v-model="searchForm.action" placeholder="全部" clearable style="width: 120px">
             <el-option label="全部" value="" />
             <el-option
               v-for="action in actionTypes"
