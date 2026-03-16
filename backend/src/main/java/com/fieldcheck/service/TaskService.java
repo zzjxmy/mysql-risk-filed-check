@@ -3,6 +3,7 @@ package com.fieldcheck.service;
 import com.fieldcheck.dto.TaskDTO;
 import com.fieldcheck.entity.*;
 import com.fieldcheck.repository.*;
+import com.fieldcheck.scheduler.TaskSchedulerConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -26,6 +27,7 @@ public class TaskService {
     private final TaskAlertConfigRepository taskAlertConfigRepository;
     private final SysUserRepository userRepository;
     private final TaskExecutionRepository executionRepository;
+    private final TaskSchedulerConfig taskSchedulerConfig;
 
     public Page<CheckTask> getTasks(String name, TaskStatus status, Long connectionId, Pageable pageable) {
         return taskRepository.findByConditions(name, status, connectionId, pageable);
@@ -80,6 +82,15 @@ public class TaskService {
             }
         }
 
+        // Schedule task if enabled and has cron expression
+        if (task.getStatus() == TaskStatus.ENABLED && task.getCronExpression() != null && !task.getCronExpression().isEmpty()) {
+            try {
+                taskSchedulerConfig.scheduleTask(task);
+            } catch (Exception e) {
+                log.error("Failed to schedule task {}: {}", task.getId(), e.getMessage());
+            }
+        }
+
         return task;
     }
 
@@ -125,7 +136,25 @@ public class TaskService {
             }
         }
 
-        return taskRepository.save(task);
+        task = taskRepository.save(task);
+
+        // Reschedule task if cron expression or status changed
+        try {
+            if (task.getCronExpression() != null && !task.getCronExpression().isEmpty()) {
+                if (task.getStatus() == TaskStatus.ENABLED) {
+                    taskSchedulerConfig.scheduleTask(task);
+                } else {
+                    taskSchedulerConfig.unscheduleTask(task.getId());
+                }
+            } else {
+                // Remove scheduling if cron expression is cleared
+                taskSchedulerConfig.unscheduleTask(task.getId());
+            }
+        } catch (Exception e) {
+            log.error("Failed to reschedule task {}: {}", task.getId(), e.getMessage());
+        }
+
+        return task;
     }
 
     @Transactional
@@ -136,6 +165,14 @@ public class TaskService {
         if (!runningExecutions.isEmpty()) {
             throw new RuntimeException("任务正在执行中，无法删除");
         }
+        
+        // Unschedule task before deletion
+        try {
+            taskSchedulerConfig.unscheduleTask(id);
+        } catch (Exception e) {
+            log.error("Failed to unschedule task {}: {}", id, e.getMessage());
+        }
+        
         taskRepository.delete(task);
     }
 
