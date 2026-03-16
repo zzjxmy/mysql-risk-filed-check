@@ -203,8 +203,9 @@ public class TaskService {
         return dto;
     }
     
+    @Transactional(readOnly = true)
     public List<AlertConfig> getTaskAlertConfigs(Long taskId) {
-        List<TaskAlertConfig> associations = taskAlertConfigRepository.findByTaskId(taskId);
+        List<TaskAlertConfig> associations = taskAlertConfigRepository.findByTaskIdWithAlertConfig(taskId);
         return associations.stream()
                 .map(TaskAlertConfig::getAlertConfig)
                 .filter(AlertConfig::getEnabled)

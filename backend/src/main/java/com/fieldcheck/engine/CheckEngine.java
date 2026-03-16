@@ -100,6 +100,13 @@ public class CheckEngine {
                     continue;
                 }
 
+                // Skip empty tables (0 rows)
+                if (table.rowCount == 0) {
+                    processed++;
+                    logCallback.accept(execution.getId(), String.format("INFO|[%d/%d] 跳过空表: %s.%s (0行)", processed, tables.size(), table.database, table.tableName));
+                    continue;
+                }
+
                 // Check connection before processing large table
                 if (table.rowCount > 100000) {
                     try {
@@ -112,20 +119,23 @@ public class CheckEngine {
                     }
                 }
 
-                // Determine scan strategy - always use full scan but skip very large tables based on config
-                boolean skipLargeTable = table.rowCount > task.getMaxTableRows() && !task.getFullScan();
-                String strategy = skipLargeTable ? "跳过(超出行数限制)" : "全量扫描";
+                // Determine scan strategy
+                // For large tables without fullScan, use sampling based on primary key (latest data)
+                boolean isLargeTable = table.rowCount > task.getMaxTableRows() && !task.getFullScan();
+                String strategy = isLargeTable ? "抽样检查(按主键)" : "全量扫描";
                 String rowCountStr = formatRowCount(table.rowCount);
                 
-                logCallback.accept(execution.getId(), String.format("INFO|[%d/%d] 开始检查表: %s.%s (约%s行, 策略: %s)", 
-                        processed + 1, tables.size(), table.database, table.tableName, rowCountStr, strategy));
-                
-                if (skipLargeTable) {
-                    processed++;
-                    logCallback.accept(execution.getId(), String.format("WARN|[%d/%d] 跳过超大表: %s.%s (行数超过限制 %d)", 
-                            processed, tables.size(), table.database, table.tableName, task.getMaxTableRows()));
-                    continue;
+                // Get primary key column for sampling
+                String primaryKey = null;
+                if (isLargeTable) {
+                    primaryKey = getPrimaryKeyColumn(conn, table.database, table.tableName);
                 }
+                final String tablePrimaryKey = primaryKey;
+                final boolean tableIsLargeTable = isLargeTable;
+                
+                logCallback.accept(execution.getId(), String.format("INFO|[%d/%d] 开始检查表: %s.%s (约%s行, 策略: %s%s)", 
+                        processed + 1, tables.size(), table.database, table.tableName, rowCountStr, strategy,
+                        isLargeTable && primaryKey != null ? ", 主键: " + primaryKey : ""));
 
                 // Get columns
                 List<ColumnInfo> columns = getColumns(conn, table.database, table.tableName);
@@ -142,20 +152,9 @@ public class CheckEngine {
                         continue;
                     }
 
-                    // Determine check types for this column
-                    List<String> checkTypes = new ArrayList<>();
-                    if (isIntegerType(column.dataType)) checkTypes.add("整型溢出");
-                    if (isTimestampType(column.dataType)) checkTypes.add("Y2038");
-                    if (isDecimalType(column.dataType)) checkTypes.add("小数溢出");
-                    
-                    if (!checkTypes.isEmpty()) {
-                        logCallback.accept(execution.getId(), String.format("DEBUG|[%d/%d] %s.%s 检查字段: %s (%s) -> %s", 
-                                processed + 1, tables.size(), table.database, table.tableName, 
-                                column.columnName, column.columnType, String.join("、", checkTypes)));
-                    }
-
                     try {
-                        List<RiskResult> risks = checkColumn(conn, execution, table, column, task, logCallback);
+                        List<RiskResult> risks = checkColumn(conn, execution, table, column, task, logCallback, 
+                                tableIsLargeTable, tablePrimaryKey);
                         if (!risks.isEmpty()) {
                             riskResultRepository.saveAll(risks);
                             riskCount += risks.size();
@@ -270,13 +269,14 @@ public class CheckEngine {
     }
 
     private List<RiskResult> checkColumn(Connection conn, TaskExecution execution, TableInfo table, 
-                                          ColumnInfo column, CheckTask task, BiConsumer<Long, String> logCallback) {
+                                          ColumnInfo column, CheckTask task, BiConsumer<Long, String> logCallback,
+                                          boolean isLargeTable, String primaryKey) {
         List<RiskResult> risks = new ArrayList<>();
         
         try {
             // Check integer overflow
             if (isIntegerType(column.dataType)) {
-                RiskResult risk = checkIntegerOverflow(conn, execution, table, column, task);
+                RiskResult risk = checkIntegerOverflow(conn, execution, table, column, task, isLargeTable, primaryKey);
                 if (risk != null) {
                     risks.add(risk);
                     logCallback.accept(execution.getId(), 
@@ -286,7 +286,7 @@ public class CheckEngine {
             
             // Check Y2038 problem
             if (isTimestampType(column.dataType)) {
-                RiskResult risk = checkY2038(conn, execution, table, column, task);
+                RiskResult risk = checkY2038(conn, execution, table, column, task, isLargeTable, primaryKey);
                 if (risk != null) {
                     risks.add(risk);
                     logCallback.accept(execution.getId(), 
@@ -296,7 +296,7 @@ public class CheckEngine {
             
             // Check decimal overflow
             if (isDecimalType(column.dataType)) {
-                RiskResult risk = checkDecimalOverflow(conn, execution, table, column, task);
+                RiskResult risk = checkDecimalOverflow(conn, execution, table, column, task, isLargeTable, primaryKey);
                 if (risk != null) {
                     risks.add(risk);
                     logCallback.accept(execution.getId(), 
@@ -312,7 +312,8 @@ public class CheckEngine {
     }
 
     private RiskResult checkIntegerOverflow(Connection conn, TaskExecution execution, TableInfo table, 
-                                            ColumnInfo column, CheckTask task) throws SQLException {
+                                            ColumnInfo column, CheckTask task, 
+                                            boolean isLargeTable, String primaryKey) throws SQLException {
         String typeKey = column.columnType.contains("UNSIGNED") 
                 ? column.dataType + " UNSIGNED" 
                 : column.dataType;
@@ -322,10 +323,19 @@ public class CheckEngine {
         
         if (maxAllowed == null) return null;
 
-        // Get actual max/min values - always use full table scan for accuracy
-        // ORDER BY RAND() is too slow for large tables
-        String sql = String.format("SELECT MAX(`%s`) as max_val, MIN(`%s`) as min_val FROM `%s`.`%s`",
-                column.columnName, column.columnName, table.database, table.tableName);
+        // Build SQL query
+        String sql;
+        if (isLargeTable && primaryKey != null) {
+            // For large tables, sample by ordering on primary key and taking latest records
+            sql = String.format("SELECT MAX(`%s`) as max_val, MIN(`%s`) as min_val FROM " +
+                    "(SELECT `%s` FROM `%s`.`%s` ORDER BY `%s` DESC LIMIT %d) AS sample",
+                    column.columnName, column.columnName, column.columnName, 
+                    table.database, table.tableName, primaryKey, task.getSampleSize());
+        } else {
+            // Full table scan
+            sql = String.format("SELECT MAX(`%s`) as max_val, MIN(`%s`) as min_val FROM `%s`.`%s`",
+                    column.columnName, column.columnName, table.database, table.tableName);
+        }
 
         try (Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
@@ -341,6 +351,9 @@ public class CheckEngine {
                 }
 
                 if (usage.compareTo(BigDecimal.valueOf(task.getThresholdPct())) >= 0) {
+                    String detail = isLargeTable ? 
+                            String.format("抽样检查(最新%d条): 最大值=%s, 类型最大值=%s", task.getSampleSize(), maxVal, maxAllowed) :
+                            String.format("当前最大值: %s, 类型最大值: %s", maxVal, maxAllowed);
                     return RiskResult.builder()
                             .execution(execution)
                             .databaseName(table.database)
@@ -351,7 +364,7 @@ public class CheckEngine {
                             .currentValue(maxVal.toString())
                             .thresholdValue(maxAllowed.toString())
                             .usagePercent(usage)
-                            .detail(String.format("当前最大值: %s, 类型最大值: %s", maxVal, maxAllowed))
+                            .detail(detail)
                             .suggestion(getSuggestion(column.dataType, typeKey))
                             .status(RiskStatus.PENDING)
                             .build();
@@ -362,10 +375,20 @@ public class CheckEngine {
     }
 
     private RiskResult checkY2038(Connection conn, TaskExecution execution, TableInfo table, 
-                                  ColumnInfo column, CheckTask task) throws SQLException {
+                                  ColumnInfo column, CheckTask task,
+                                  boolean isLargeTable, String primaryKey) throws SQLException {
         // TIMESTAMP type has Y2038 problem (max: 2038-01-19 03:14:07)
-        String sql = String.format("SELECT MAX(`%s`) as max_val FROM `%s`.`%s`",
-                column.columnName, table.database, table.tableName);
+        String sql;
+        if (isLargeTable && primaryKey != null) {
+            // For large tables, sample by ordering on primary key
+            sql = String.format("SELECT MAX(`%s`) as max_val FROM " +
+                    "(SELECT `%s` FROM `%s`.`%s` ORDER BY `%s` DESC LIMIT %d) AS sample",
+                    column.columnName, column.columnName, 
+                    table.database, table.tableName, primaryKey, task.getSampleSize());
+        } else {
+            sql = String.format("SELECT MAX(`%s`) as max_val FROM `%s`.`%s`",
+                    column.columnName, table.database, table.tableName);
+        }
 
         try (Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
@@ -374,6 +397,9 @@ public class CheckEngine {
                 if (maxVal != null) {
                     int year = maxVal.toLocalDateTime().getYear();
                     if (year >= task.getY2038WarningYear()) {
+                        String detail = isLargeTable ?
+                                String.format("抽样检查(最新%d条): 最大时间=%s, 已接近2038年限制", task.getSampleSize(), maxVal) :
+                                String.format("当前最大时间: %s, 已接近2038年限制", maxVal);
                         return RiskResult.builder()
                                 .execution(execution)
                                 .databaseName(table.database)
@@ -383,7 +409,7 @@ public class CheckEngine {
                                 .riskType(RiskType.Y2038)
                                 .currentValue(maxVal.toString())
                                 .thresholdValue("2038-01-19 03:14:07")
-                                .detail(String.format("当前最大时间: %s, 已接近2038年限制", maxVal))
+                                .detail(detail)
                                 .suggestion("建议将TIMESTAMP类型改为DATETIME类型")
                                 .status(RiskStatus.PENDING)
                                 .build();
@@ -395,14 +421,24 @@ public class CheckEngine {
     }
 
     private RiskResult checkDecimalOverflow(Connection conn, TaskExecution execution, TableInfo table, 
-                                            ColumnInfo column, CheckTask task) throws SQLException {
+                                            ColumnInfo column, CheckTask task,
+                                            boolean isLargeTable, String primaryKey) throws SQLException {
         if (column.numericPrecision == null || column.numericScale == null) return null;
         
         int intDigits = column.numericPrecision - column.numericScale;
         BigDecimal maxAllowed = BigDecimal.TEN.pow(intDigits).subtract(BigDecimal.ONE);
 
-        String sql = String.format("SELECT MAX(ABS(`%s`)) as max_val FROM `%s`.`%s`",
-                column.columnName, table.database, table.tableName);
+        String sql;
+        if (isLargeTable && primaryKey != null) {
+            // For large tables, sample by ordering on primary key
+            sql = String.format("SELECT MAX(ABS(`%s`)) as max_val FROM " +
+                    "(SELECT `%s` FROM `%s`.`%s` ORDER BY `%s` DESC LIMIT %d) AS sample",
+                    column.columnName, column.columnName, 
+                    table.database, table.tableName, primaryKey, task.getSampleSize());
+        } else {
+            sql = String.format("SELECT MAX(ABS(`%s`)) as max_val FROM `%s`.`%s`",
+                    column.columnName, table.database, table.tableName);
+        }
 
         try (Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
@@ -413,6 +449,9 @@ public class CheckEngine {
                             .divide(maxAllowed, 2, BigDecimal.ROUND_HALF_UP);
                     
                     if (usage.compareTo(BigDecimal.valueOf(task.getThresholdPct())) >= 0) {
+                        String detail = isLargeTable ?
+                                String.format("抽样检查(最新%d条): 最大值=%s, 类型最大值=%s", task.getSampleSize(), maxVal, maxAllowed) :
+                                String.format("当前最大值: %s, 类型最大值: %s", maxVal, maxAllowed);
                         return RiskResult.builder()
                                 .execution(execution)
                                 .databaseName(table.database)
@@ -423,7 +462,7 @@ public class CheckEngine {
                                 .currentValue(maxVal.toString())
                                 .thresholdValue(maxAllowed.toString())
                                 .usagePercent(usage)
-                                .detail(String.format("当前最大值: %s, 类型最大值: %s", maxVal, maxAllowed))
+                                .detail(detail)
                                 .suggestion(String.format("建议扩展精度，如: DECIMAL(%d,%d)", 
                                         column.numericPrecision + 5, column.numericScale))
                                 .status(RiskStatus.PENDING)
@@ -498,6 +537,28 @@ public class CheckEngine {
         } else {
             return String.valueOf(count);
         }
+    }
+
+    /**
+     * Get primary key column name for a table
+     * Returns the first primary key column, or null if no primary key exists
+     */
+    private String getPrimaryKeyColumn(Connection conn, String database, String tableName) {
+        String sql = String.format(
+            "SELECT COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE " +
+            "WHERE TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s' AND CONSTRAINT_NAME = 'PRIMARY' " +
+            "ORDER BY ORDINAL_POSITION LIMIT 1",
+            database, tableName);
+        
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) {
+                return rs.getString("COLUMN_NAME");
+            }
+        } catch (SQLException e) {
+            log.warn("Failed to get primary key for {}.{}: {}", database, tableName, e.getMessage());
+        }
+        return null;
     }
 
     private static class TableInfo {

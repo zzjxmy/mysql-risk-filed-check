@@ -11,6 +11,9 @@ public interface TaskAlertConfigRepository extends JpaRepository<TaskAlertConfig
 
     List<TaskAlertConfig> findByTaskId(Long taskId);
 
+    @org.springframework.data.jpa.repository.Query("SELECT t FROM TaskAlertConfig t JOIN FETCH t.alertConfig WHERE t.task.id = :taskId")
+    List<TaskAlertConfig> findByTaskIdWithAlertConfig(@org.springframework.data.repository.query.Param("taskId") Long taskId);
+
     void deleteByTaskId(Long taskId);
 
     boolean existsByTaskIdAndAlertConfigId(Long taskId, Long alertConfigId);

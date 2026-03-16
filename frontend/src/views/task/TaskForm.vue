@@ -28,12 +28,15 @@
         </el-form-item>
         <el-form-item label="强制全表扫描">
           <el-switch v-model="form.fullScan" />
+          <div class="form-tip">开启后所有表都全量扫描，关闭时大表使用抽样检查</div>
         </el-form-item>
         <el-form-item label="抽样条数">
-          <el-input-number v-model="form.sampleSize" :min="100" :max="10000" />
+          <el-input-number v-model="form.sampleSize" :min="100" :max="100000" :step="1000" />
+          <div class="form-tip">大表抽样时按主键排序取最新的N条数据，默认1000条</div>
         </el-form-item>
         <el-form-item label="大表阈值">
-          <el-input-number v-model="form.maxTableRows" :min="10000" />
+          <el-input-number v-model="form.maxTableRows" :min="10000" :step="100000" />
+          <div class="form-tip">超过此行数的表使用抽样检查（按主键取最新数据），默认100万行</div>
         </el-form-item>
         <el-form-item label="定时表达式">
           <el-input v-model="form.cronExpression" placeholder="如：0 0 2 * * ? (每天凌晨2点)" />
