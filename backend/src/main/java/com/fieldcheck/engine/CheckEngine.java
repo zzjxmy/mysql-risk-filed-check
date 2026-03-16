@@ -58,11 +58,13 @@ public class CheckEngine {
         CheckTask task = execution.getTask();
         DbConnection dbConnection = task.getConnection();
         
-        String jdbcUrl = String.format("jdbc:mysql://%s:%d?useSSL=false&serverTimezone=Asia/Shanghai",
+        String jdbcUrl = String.format("jdbc:mysql://%s:%d?useSSL=false&serverTimezone=Asia/Shanghai&connectTimeout=30000&socketTimeout=300000&autoReconnect=true&failOverReadOnly=false&maxReconnects=3",
                 dbConnection.getHost(), dbConnection.getPort());
         String password = connectionService.getDecryptedPassword(dbConnection.getId());
 
         try (Connection conn = DriverManager.getConnection(jdbcUrl, dbConnection.getUsername(), password)) {
+            // Set connection to keep alive during long operations
+            conn.setAutoCommit(true);
             // Get databases to check
             List<String> databases = getDatabases(conn, task.getDbPattern());
             logCallback.accept(execution.getId(), String.format("INFO|找到 %d 个数据库待检查", databases.size()));
@@ -98,13 +100,32 @@ public class CheckEngine {
                     continue;
                 }
 
-                // Determine scan strategy
-                boolean useSampling = table.rowCount > task.getMaxTableRows() && !task.getFullScan();
-                String strategy = useSampling ? "采样扫描" : "全量扫描";
+                // Check connection before processing large table
+                if (table.rowCount > 100000) {
+                    try {
+                        if (!conn.isValid(5)) {
+                            logCallback.accept(execution.getId(), String.format("WARN|[%d/%d] 连接已失效，尝试重新连接...", processed + 1, tables.size()));
+                            // Connection will be re-established on next operation with autoReconnect
+                        }
+                    } catch (SQLException e) {
+                        log.warn("Connection validation failed", e);
+                    }
+                }
+
+                // Determine scan strategy - always use full scan but skip very large tables based on config
+                boolean skipLargeTable = table.rowCount > task.getMaxTableRows() && !task.getFullScan();
+                String strategy = skipLargeTable ? "跳过(超出行数限制)" : "全量扫描";
                 String rowCountStr = formatRowCount(table.rowCount);
                 
                 logCallback.accept(execution.getId(), String.format("INFO|[%d/%d] 开始检查表: %s.%s (约%s行, 策略: %s)", 
                         processed + 1, tables.size(), table.database, table.tableName, rowCountStr, strategy));
+                
+                if (skipLargeTable) {
+                    processed++;
+                    logCallback.accept(execution.getId(), String.format("WARN|[%d/%d] 跳过超大表: %s.%s (行数超过限制 %d)", 
+                            processed, tables.size(), table.database, table.tableName, task.getMaxTableRows()));
+                    continue;
+                }
 
                 // Get columns
                 List<ColumnInfo> columns = getColumns(conn, table.database, table.tableName);
@@ -133,10 +154,19 @@ public class CheckEngine {
                                 column.columnName, column.columnType, String.join("、", checkTypes)));
                     }
 
-                    List<RiskResult> risks = checkColumn(conn, execution, table, column, task, logCallback);
-                    if (!risks.isEmpty()) {
-                        riskResultRepository.saveAll(risks);
-                        riskCount += risks.size();
+                    try {
+                        List<RiskResult> risks = checkColumn(conn, execution, table, column, task, logCallback);
+                        if (!risks.isEmpty()) {
+                            riskResultRepository.saveAll(risks);
+                            riskCount += risks.size();
+                        }
+                    } catch (Exception e) {
+                        if (e.getMessage() != null && (e.getMessage().contains("connection closed") || e.getMessage().contains("Connection reset"))) {
+                            logCallback.accept(execution.getId(), String.format("ERROR|[%d/%d] 检查字段 %s.%s.%s 时连接断开: %s", 
+                                    processed + 1, tables.size(), table.database, table.tableName, column.columnName, e.getMessage()));
+                            throw new RuntimeException("数据库连接断开: " + e.getMessage(), e);
+                        }
+                        log.error("检查字段失败: {}.{}.{}", table.database, table.tableName, column.columnName, e);
                     }
                     columnProcessed++;
                 }
@@ -292,15 +322,10 @@ public class CheckEngine {
         
         if (maxAllowed == null) return null;
 
-        // Get actual max/min values
+        // Get actual max/min values - always use full table scan for accuracy
+        // ORDER BY RAND() is too slow for large tables
         String sql = String.format("SELECT MAX(`%s`) as max_val, MIN(`%s`) as min_val FROM `%s`.`%s`",
                 column.columnName, column.columnName, table.database, table.tableName);
-        
-        // For large tables, use sampling
-        if (table.rowCount > task.getMaxTableRows() && !task.getFullScan()) {
-            sql = String.format("SELECT MAX(`%s`) as max_val, MIN(`%s`) as min_val FROM `%s`.`%s` ORDER BY RAND() LIMIT %d",
-                    column.columnName, column.columnName, table.database, table.tableName, task.getSampleSize());
-        }
 
         try (Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {

@@ -184,10 +184,10 @@ const loadHistoricalLogs = async (executionId: number) => {
     const res = await getExecutionLog(executionId)
     if (res.code === 200 && res.data) {
       // Parse log file content
+      // Format: [2026-03-15 20:04:35] [INFO] message
       const lines = res.data.split('\n').filter((line: string) => line.trim())
       lines.forEach((line: string) => {
-        // Parse format: [2026-03-14 10:46:27] [INFO] message
-        const match = line.match(/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] \[(\w+)\] (.+)$/)
+        const match = line.match(/^\[(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\]\s*\[(\w+)\]\s*(.*)$/)
         if (match) {
           logs.value.push({
             timestamp: match[1],

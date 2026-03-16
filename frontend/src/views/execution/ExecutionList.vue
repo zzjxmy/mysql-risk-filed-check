@@ -121,9 +121,13 @@
     </el-card>
 
     <!-- 日志对话框 -->
-    <el-dialog v-model="logVisible" title="执行日志" width="800px">
+    <el-dialog v-model="logVisible" title="执行日志" width="900px">
       <div class="log-container">
-        <pre>{{ logContent }}</pre>
+        <div v-for="(line, index) in parsedLogs" :key="index" :class="['log-line', `log-${line.level.toLowerCase()}`]">
+          <span class="log-time">[{{ line.time }}]</span>
+          <span class="log-level">[{{ line.level }}]</span>
+          <span class="log-message">{{ line.message }}</span>
+        </div>
       </div>
     </el-dialog>
   </div>
@@ -140,6 +144,7 @@ const loading = ref(false)
 const tableData = ref<Execution[]>([])
 const logVisible = ref(false)
 const logContent = ref('')
+const parsedLogs = ref<Array<{time: string, level: string, message: string}>>([])
 
 const searchForm = reactive({
   taskName: '',
@@ -235,11 +240,38 @@ const viewRisks = (row: Execution) => {
   })
 }
 
+const parseLogContent = (content: string) => {
+  if (!content) return []
+
+  const lines = content.split('\n').filter(line => line.trim())
+  return lines.map(line => {
+    // Match format: [2026-03-15 20:04:35] [INFO] message
+    // or: [2026-03-15 20:04:35] [WARN] 发现整型溢出风险
+    const match = line.match(/^\[(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\]\s*\[(\w+)\]\s*(.*)$/)
+
+    if (match) {
+      return {
+        time: match[1],
+        level: match[2],
+        message: match[3].trim()
+      }
+    }
+
+    // Return as plain message if no match
+    return {
+      time: '-',
+      level: 'INFO',
+      message: line
+    }
+  })
+}
+
 const viewLog = async (row: Execution) => {
   try {
     const res = await getExecutionLog(row.id)
     if (res.code === 200) {
       logContent.value = res.data || '暂无日志'
+      parsedLogs.value = parseLogContent(res.data || '')
       logVisible.value = true
     }
   } catch (error) {
@@ -310,17 +342,32 @@ onMounted(() => {
   max-height: 500px;
   overflow-y: auto;
   background: #1e1e1e;
-  color: #d4d4d4;
-  padding: 15px;
+  padding: 10px;
   border-radius: 4px;
-}
-
-.log-container pre {
-  margin: 0;
-  white-space: pre-wrap;
-  word-wrap: break-word;
   font-family: 'Consolas', monospace;
   font-size: 13px;
-  line-height: 1.5;
 }
+
+.log-line {
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.log-time {
+  color: #888;
+}
+
+.log-level {
+  margin-right: 4px;
+}
+
+.log-info .log-level { color: #58a6ff; }
+.log-info .log-message { color: #c9d1d9; }
+.log-warn .log-level { color: #d29922; }
+.log-warn .log-message { color: #d29922; }
+.log-error .log-level { color: #f85149; }
+.log-error .log-message { color: #f85149; }
+.log-debug .log-level { color: #17a2b8; }
+.log-debug .log-message { color: #17a2b8; }
 </style>
