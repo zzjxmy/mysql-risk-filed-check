@@ -93,22 +93,44 @@ public class CheckEngine {
 
                 // Check whitelist
                 if (whitelistService.isWhitelisted(table.database, table.tableName, null, task)) {
-                    logCallback.accept(execution.getId(), String.format("INFO|跳过白名单表: %s.%s", table.database, table.tableName));
                     processed++;
+                    logCallback.accept(execution.getId(), String.format("INFO|[%d/%d] 跳过白名单表: %s.%s", processed, tables.size(), table.database, table.tableName));
                     continue;
                 }
 
-                logCallback.accept(execution.getId(), String.format("INFO|检查表: %s.%s", table.database, table.tableName));
+                // Determine scan strategy
+                boolean useSampling = table.rowCount > task.getMaxTableRows() && !task.getFullScan();
+                String strategy = useSampling ? "采样扫描" : "全量扫描";
+                String rowCountStr = formatRowCount(table.rowCount);
+                
+                logCallback.accept(execution.getId(), String.format("INFO|[%d/%d] 开始检查表: %s.%s (约%s行, 策略: %s)", 
+                        processed + 1, tables.size(), table.database, table.tableName, rowCountStr, strategy));
 
                 // Get columns
                 List<ColumnInfo> columns = getColumns(conn, table.database, table.tableName);
+                logCallback.accept(execution.getId(), String.format("INFO|[%d/%d] %s.%s 共%d个字段待检查", 
+                        processed + 1, tables.size(), table.database, table.tableName, columns.size()));
                 
+                int columnProcessed = 0;
                 for (ColumnInfo column : columns) {
                     if (stopCheck.get()) return;
                     
                     // Check whitelist for field
                     if (whitelistService.isWhitelisted(table.database, table.tableName, column.columnName, task)) {
+                        columnProcessed++;
                         continue;
+                    }
+
+                    // Determine check types for this column
+                    List<String> checkTypes = new ArrayList<>();
+                    if (isIntegerType(column.dataType)) checkTypes.add("整型溢出");
+                    if (isTimestampType(column.dataType)) checkTypes.add("Y2038");
+                    if (isDecimalType(column.dataType)) checkTypes.add("小数溢出");
+                    
+                    if (!checkTypes.isEmpty()) {
+                        logCallback.accept(execution.getId(), String.format("DEBUG|[%d/%d] %s.%s 检查字段: %s (%s) -> %s", 
+                                processed + 1, tables.size(), table.database, table.tableName, 
+                                column.columnName, column.columnType, String.join("、", checkTypes)));
                     }
 
                     List<RiskResult> risks = checkColumn(conn, execution, table, column, task, logCallback);
@@ -116,11 +138,15 @@ public class CheckEngine {
                         riskResultRepository.saveAll(risks);
                         riskCount += risks.size();
                     }
+                    columnProcessed++;
                 }
 
                 processed++;
                 execution.setProcessedTables(processed);
                 execution.setRiskCount(riskCount);
+                
+                logCallback.accept(execution.getId(), String.format("INFO|[%d/%d] 完成表: %s.%s (累计风险: %d)", 
+                        processed, tables.size(), table.database, table.tableName, riskCount));
                 
                 // Save progress every 5 tables to reduce database writes
                 saveCounter++;
@@ -433,6 +459,19 @@ public class CheckEngine {
             case "INT": return "建议升级为BIGINT类型";
             case "BIGINT": return "已是最大整型，建议考虑分表或使用字符串存储";
             default: return "建议扩展字段容量";
+        }
+    }
+
+    /**
+     * Format row count to human readable string
+     */
+    private String formatRowCount(long count) {
+        if (count >= 100_000_000) {
+            return String.format("%.1f亿", count / 100_000_000.0);
+        } else if (count >= 10_000) {
+            return String.format("%.1f万", count / 10_000.0);
+        } else {
+            return String.valueOf(count);
         }
     }
 
