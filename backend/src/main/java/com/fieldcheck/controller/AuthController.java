@@ -26,12 +26,23 @@ public class AuthController {
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request,
                                            HttpServletRequest httpRequest) {
         try {
+            // Create authentication token with useLdap flag in details
+            org.springframework.security.authentication.UsernamePasswordAuthenticationToken authRequest =
+                    new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                            request.getUsername(), request.getPassword());
+            
+            // Store useLdap flag in details
+            java.util.Map<String, Object> details = new java.util.HashMap<>();
+            details.put("useLdap", Boolean.TRUE.equals(request.getUseLdap()));
+            authRequest.setDetails(details);
+            
             LoginResponse response = authService.login(request);
-            auditLogService.logLogin(request.getUsername(), httpRequest, true, "登录成功");
+            auditLogService.logLogin(request.getUsername(), httpRequest, true, 
+                    Boolean.TRUE.equals(request.getUseLdap()) ? "LDAP登录成功" : "登录成功");
             return ApiResponse.success(response);
         } catch (Exception e) {
             auditLogService.logLogin(request.getUsername(), httpRequest, false, "登录失败: " + e.getMessage());
-            return ApiResponse.error(401, "用户名或密码错误");
+            return ApiResponse.error(401, e.getMessage());
         }
     }
 

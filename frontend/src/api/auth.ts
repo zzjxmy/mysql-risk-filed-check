@@ -13,8 +13,8 @@ export interface LoginResponse {
   }
 }
 
-export function login(username: string, password: string): Promise<LoginResponse> {
-  return request.post('/auth/login', { username, password })
+export function login(username: string, password: string, useLdap: boolean = false): Promise<LoginResponse> {
+  return request.post('/auth/login', { username, password, useLdap })
 }
 
 export function logout() {

@@ -25,8 +25,8 @@ export const useUserStore = defineStore('user', () => {
     localStorage.setItem('userInfo', JSON.stringify(info))
   }
 
-  const login = async (username: string, password: string) => {
-    const res = await apiLogin(username, password)
+  const login = async (username: string, password: string, useLdap: boolean = false) => {
+    const res = await apiLogin(username, password, useLdap)
     if (res.code === 200) {
       setToken(res.data.token)
       setUserInfo({

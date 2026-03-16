@@ -21,7 +21,7 @@ public class SysUser extends BaseEntity {
     @Column(nullable = false, unique = true, length = 100)
     private String username;
 
-    @Column(nullable = false)
+    @Column
     private String password;
 
     @Column(length = 100)
@@ -40,4 +40,17 @@ public class SysUser extends BaseEntity {
 
     @Column(name = "last_login_time")
     private LocalDateTime lastLoginTime;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_type", length = 20)
+    @Builder.Default
+    private AuthType authType = AuthType.LOCAL;
+
+    @Column(name = "ldap_dn", length = 500)
+    private String ldapDn;  // LDAP Distinguished Name
+
+    public enum AuthType {
+        LOCAL,  // Local database user
+        LDAP    // LDAP/AD user
+    }
 }

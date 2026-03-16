@@ -89,6 +89,12 @@ const routes: RouteRecordRaw[] = [
         name: 'AuditLogs',
         component: () => import('../views/system/AuditList.vue'),
         meta: { title: '审计日志', roles: ['ADMIN'] }
+      },
+      {
+        path: 'ldap-config',
+        name: 'LdapConfig',
+        component: () => import('../views/system/LdapConfig.vue'),
+        meta: { title: 'LDAP配置', roles: ['ADMIN'] }
       }
     ]
   }

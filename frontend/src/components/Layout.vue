@@ -48,6 +48,10 @@
           <el-icon><Tickets /></el-icon>
           <span>审计日志</span>
         </el-menu-item>
+        <el-menu-item index="/ldap-config" v-if="userStore.userInfo?.role === 'ADMIN'">
+          <el-icon><Connection /></el-icon>
+          <span>LDAP配置</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>

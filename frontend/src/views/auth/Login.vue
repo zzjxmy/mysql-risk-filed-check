@@ -27,6 +27,11 @@
             @keyup.enter="handleLogin"
           />
         </el-form-item>
+        <el-form-item v-if="ldapEnabled">
+          <el-checkbox v-model="loginForm.useLdap">
+            使用LDAP登录
+          </el-checkbox>
+        </el-form-item>
         <el-form-item>
           <el-button
             type="primary"
@@ -35,38 +40,53 @@
             class="login-btn"
             @click="handleLogin"
           >
-            登 录
+            {{ loginForm.useLdap ? 'LDAP登录' : '登 录' }}
           </el-button>
         </el-form-item>
       </el-form>
       <div class="tips">
-        <span>默认账号: admin / admin123</span>
+        <span v-if="!loginForm.useLdap">默认账号: admin / admin123</span>
+        <span v-else>使用LDAP账号密码登录</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useUserStore } from '../../stores/user'
+import { getLdapStatus } from '../../api/ldap'
 
 const router = useRouter()
 const userStore = useUserStore()
 
 const loginFormRef = ref<FormInstance>()
 const loading = ref(false)
+const ldapEnabled = ref(false)
 
 const loginForm = reactive({
   username: '',
-  password: ''
+  password: '',
+  useLdap: false
 })
 
 const loginRules: FormRules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+}
+
+// Check if LDAP is enabled
+const checkLdapStatus = async () => {
+  try {
+    const { data } = await getLdapStatus()
+    ldapEnabled.value = data?.enabled || false
+  } catch (error) {
+    // LDAP config might not exist
+    ldapEnabled.value = false
+  }
 }
 
 const handleLogin = async () => {
@@ -76,7 +96,7 @@ const handleLogin = async () => {
     if (valid) {
       loading.value = true
       try {
-        await userStore.login(loginForm.username, loginForm.password)
+        await userStore.login(loginForm.username, loginForm.password, loginForm.useLdap)
         ElMessage.success('登录成功')
         router.push('/dashboard')
       } catch (error: any) {
@@ -87,6 +107,10 @@ const handleLogin = async () => {
     }
   })
 }
+
+onMounted(() => {
+  checkLdapStatus()
+})
 </script>
 
 <style scoped>
