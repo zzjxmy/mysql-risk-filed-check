@@ -67,8 +67,11 @@ app:
   max-concurrent-tasks: 5
 
 logging:
+  file:
+    name: ./logs/application.log
   level:
     root: INFO
     com.fieldcheck: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
