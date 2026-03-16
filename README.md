@@ -16,6 +16,7 @@
 - **告警通知** - 支持钉钉和邮件告警，任务可关联多个告警配置
 - **用户权限管理** - 基于 RBAC 的用户管理，支持 ADMIN/USER 角色
 - **审计日志** - 记录所有操作行为，支持按用户、操作类型、时间筛选
+- **LDAP 认证** - 支持 LDAP/Active Directory 登录，页面化配置
 
 ### 风险检测类型
 - **整型溢出** - TINYINT/SMALLINT/MEDIUMINT/INT/BIGINT 及其 UNSIGNED
@@ -30,6 +31,7 @@
 - Spring Boot 2.7.18
 - Spring Security + JWT
 - Spring Data JPA
+- Spring LDAP
 - Quartz Scheduler
 - WebSocket (STOMP)
 - Apache POI (Excel 导出)
@@ -183,6 +185,7 @@ mysql-risk-filed-check/
 
 ### 系统管理
 - 用户管理：添加、编辑、删除用户，重置密码
+- LDAP 配置：页面化配置 LDAP/AD 认证，支持连接测试
 - 审计日志：查看所有操作记录
 
 ## 配置说明
@@ -204,6 +207,15 @@ app:
     secret: your-jwt-secret-key-at-least-256-bits
     expiration: 86400000  # 24 hours
 ```
+
+### LDAP 配置
+在系统管理页面配置 LDAP/AD 认证：
+- 启用/禁用 LDAP 认证
+- 服务器地址（支持 ldap:// 和 ldaps://）
+- Base DN、用户搜索基础、搜索过滤器
+- 管理员账号（用于同步用户信息）
+- 邮件和显示名称属性映射
+- 默认角色分配
 
 ### 日志配置
 ```yaml
@@ -237,6 +249,10 @@ app:
 | 风险 | PUT /api/risks/{id}/status | 更新状态 |
 | 告警 | GET /api/alerts | 获取告警配置 |
 | 告警 | POST /api/alerts/{id}/test | 测试告警 |
+| LDAP | GET /api/ldap-config | 获取 LDAP 状态 |
+| LDAP | GET /api/ldap-config/detail | 获取 LDAP 配置（ADMIN） |
+| LDAP | POST /api/ldap-config | 保存 LDAP 配置（ADMIN） |
+| LDAP | POST /api/ldap-config/test | 测试 LDAP 连接（ADMIN） |
 
 ## 部署
 
@@ -297,6 +313,7 @@ server {
 - [x] 告警配置
 - [x] 用户权限管理
 - [x] 审计日志
+- [x] LDAP 认证
 - [ ] 更多字段类型支持（ENUM、SET、JSON 等）
 - [ ] 历史趋势分析
 - [ ] 风险修复建议
