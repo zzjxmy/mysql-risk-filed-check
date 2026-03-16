@@ -18,12 +18,13 @@
             </div>
           </template>
           <div ref="logContainerRef" class="log-container">
-            <div v-for="(log, index) in logs" :key="index" :class="['log-line', `log-${log.level.toLowerCase()}`]">
+            <div v-for="(log, index) in visibleLogs" :key="index" :class="['log-line', `log-${log.level.toLowerCase()}`]">
               <span class="log-time">[{{ log.timestamp }}]</span>
               <span class="log-level">[{{ log.level }}]</span>
               <span class="log-message">{{ log.message }}</span>
             </div>
             <div v-if="logs.length === 0" class="log-empty">暂无日志</div>
+            <div v-if="logs.length > MAX_LOGS" class="log-truncated">... 仅显示最近 {{ MAX_LOGS }} 条日志 ...</div>
           </div>
         </el-card>
       </el-col>
@@ -67,6 +68,8 @@ const logs = ref<Array<{ timestamp: string; level: string; message: string }>>([
 const logContainerRef = ref<HTMLDivElement>()
 const loading = ref(true)
 let stompClient: any = null
+const MAX_LOGS = 500 // Maximum logs to keep in memory
+const VISIBLE_LOGS = 100 // Number of logs to render at once for performance
 
 const statusType = computed(() => {
   const statusMap: Record<string, string> = {
@@ -96,6 +99,12 @@ const progressStatus = computed(() => {
   return undefined
 })
 
+// Only render last VISIBLE_LOGS for performance
+const visibleLogs = computed(() => {
+  if (logs.value.length <= VISIBLE_LOGS) return logs.value
+  return logs.value.slice(-VISIBLE_LOGS)
+})
+
 const connectWebSocket = (executionId: number) => {
   // Use SockJS with the correct path
   const socket = new SockJS('http://localhost:8080/ws')
@@ -111,6 +120,10 @@ const connectWebSocket = (executionId: number) => {
         level: log.level,
         message: log.message
       })
+      // Limit logs to prevent memory issues
+      if (logs.value.length > MAX_LOGS) {
+        logs.value = logs.value.slice(-MAX_LOGS)
+      }
       nextTick(() => scrollToBottom())
     })
   }, (error: any) => {
@@ -186,7 +199,9 @@ const loadHistoricalLogs = async (executionId: number) => {
       // Parse log file content
       // Format: [2026-03-15 20:04:35] [INFO] message
       const lines = res.data.split('\n').filter((line: string) => line.trim())
-      lines.forEach((line: string) => {
+      // Only load last MAX_LOGS lines to prevent performance issues
+      const linesToLoad = lines.length > MAX_LOGS ? lines.slice(-MAX_LOGS) : lines
+      linesToLoad.forEach((line: string) => {
         const match = line.match(/^\[(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\]\s*\[(\w+)\]\s*(.*)$/)
         if (match) {
           logs.value.push({
@@ -262,4 +277,19 @@ onUnmounted(() => {
 .log-warn .log-message { color: #d29922; }
 .log-error .log-level { color: #f85149; }
 .log-error .log-message { color: #f85149; }
+
+.log-truncated {
+  text-align: center;
+  color: #888;
+  padding: 10px;
+  font-style: italic;
+  border-top: 1px dashed #444;
+  margin-top: 10px;
+}
+
+.log-empty {
+  text-align: center;
+  color: #666;
+  padding: 40px;
+}
 </style>
