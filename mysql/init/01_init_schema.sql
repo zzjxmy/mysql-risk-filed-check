@@ -7,7 +7,6 @@ CREATE DATABASE IF NOT EXISTS fieldcheck
 
 USE fieldcheck;
 
--- Create syntax for TABLE 'alert_config'
 CREATE TABLE `alert_config` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `created_at` datetime(6) NOT NULL,
@@ -20,7 +19,6 @@ CREATE TABLE `alert_config` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Create syntax for TABLE 'audit_log'
 CREATE TABLE `audit_log` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `created_at` datetime(6) NOT NULL,
@@ -40,7 +38,37 @@ CREATE TABLE `audit_log` (
   KEY `idx_action` (`action`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Create syntax for TABLE 'check_task'
+CREATE TABLE `sys_user` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `email` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `enabled` bit(1) NOT NULL,
+  `nickname` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `role` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `username` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_51bvuyvihefoh4kp5syh2jpi4` (`username`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `db_connection` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `enabled` bit(1) NOT NULL,
+  `host` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password` varchar(500) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `port` int(11) NOT NULL,
+  `remark` text COLLATE utf8mb4_unicode_ci,
+  `username` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_by` bigint(20) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FK9u2g9g4u2a18bytvr5uqvrk1f` (`created_by`),
+  CONSTRAINT `FK9u2g9g4u2a18bytvr5uqvrk1f` FOREIGN KEY (`created_by`) REFERENCES `sys_user` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `check_task` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `created_at` datetime(6) NOT NULL,
@@ -66,25 +94,26 @@ CREATE TABLE `check_task` (
   CONSTRAINT `FK727fkha23y8hxldc1j88plr3y` FOREIGN KEY (`connection_id`) REFERENCES `db_connection` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Create syntax for TABLE 'db_connection'
-CREATE TABLE `db_connection` (
+CREATE TABLE `task_execution` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `created_at` datetime(6) NOT NULL,
   `updated_at` datetime(6) DEFAULT NULL,
-  `enabled` bit(1) NOT NULL,
-  `host` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `password` varchar(500) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `port` int(11) NOT NULL,
-  `remark` text COLLATE utf8mb4_unicode_ci,
-  `username` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `created_by` bigint(20) DEFAULT NULL,
+  `end_time` datetime(6) DEFAULT NULL,
+  `error_message` text COLLATE utf8mb4_unicode_ci,
+  `log_path` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `processed_tables` int(11) DEFAULT NULL,
+  `risk_count` int(11) DEFAULT NULL,
+  `start_time` datetime(6) DEFAULT NULL,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `total_tables` int(11) DEFAULT NULL,
+  `trigger_type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `task_id` bigint(20) NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `FK9u2g9g4u2a18bytvr5uqvrk1f` (`created_by`),
-  CONSTRAINT `FK9u2g9g4u2a18bytvr5uqvrk1f` FOREIGN KEY (`created_by`) REFERENCES `sys_user` (`id`)
+  KEY `FK38vsmv8w996if4sdk6m5rff9e` (`task_id`),
+  CONSTRAINT `FK38vsmv8w996if4sdk6m5rff9e` FOREIGN KEY (`task_id`) REFERENCES `check_task` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Create syntax for TABLE 'risk_result'
+
 CREATE TABLE `risk_result` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `created_at` datetime(6) NOT NULL,
@@ -109,22 +138,7 @@ CREATE TABLE `risk_result` (
   CONSTRAINT `FKmhgul5ruq2trsyy7y5vu19yvi` FOREIGN KEY (`execution_id`) REFERENCES `task_execution` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Create syntax for TABLE 'sys_user'
-CREATE TABLE `sys_user` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `created_at` datetime(6) NOT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `email` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `enabled` bit(1) NOT NULL,
-  `nickname` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `role` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `username` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UK_51bvuyvihefoh4kp5syh2jpi4` (`username`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Create syntax for TABLE 'task_alert_relation'
 CREATE TABLE `task_alert_relation` (
   `task_id` bigint(20) NOT NULL,
   `alert_id` bigint(20) NOT NULL,
@@ -134,27 +148,7 @@ CREATE TABLE `task_alert_relation` (
   CONSTRAINT `FK4gqwme24pc7ff0hsgh12y6jsk` FOREIGN KEY (`task_id`) REFERENCES `check_task` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Create syntax for TABLE 'task_execution'
-CREATE TABLE `task_execution` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `created_at` datetime(6) NOT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `end_time` datetime(6) DEFAULT NULL,
-  `error_message` text COLLATE utf8mb4_unicode_ci,
-  `log_path` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `processed_tables` int(11) DEFAULT NULL,
-  `risk_count` int(11) DEFAULT NULL,
-  `start_time` datetime(6) DEFAULT NULL,
-  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `total_tables` int(11) DEFAULT NULL,
-  `trigger_type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `task_id` bigint(20) NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `FK38vsmv8w996if4sdk6m5rff9e` (`task_id`),
-  CONSTRAINT `FK38vsmv8w996if4sdk6m5rff9e` FOREIGN KEY (`task_id`) REFERENCES `check_task` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Create syntax for TABLE 'whitelist_rule'
 CREATE TABLE `whitelist_rule` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `created_at` datetime(6) NOT NULL,
@@ -166,7 +160,6 @@ CREATE TABLE `whitelist_rule` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Create syntax for TABLE 'task_alert_config' (任务与告警配置关联表)
 CREATE TABLE `task_alert_config` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `task_id` bigint(20) NOT NULL,

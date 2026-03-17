@@ -1,7 +1,10 @@
 # 后端构建阶段
-FROM maven:3.8-openjdk-8-slim AS builder
+FROM eclipse-temurin:8-jdk AS builder
 
 WORKDIR /app
+
+# 安装 Maven
+RUN apt-get update && apt-get install -y --no-install-recommends maven && rm -rf /var/lib/apt/lists/*
 
 # 复制 pom.xml 并下载依赖（利用 Docker 缓存）
 COPY pom.xml .
@@ -12,7 +15,7 @@ COPY src ./src
 RUN mvn package -DskipTests -B
 
 # 运行阶段
-FROM openjdk:8-jre-slim
+FROM eclipse-temurin:8-jre
 
 WORKDIR /app
 
