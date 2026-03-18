@@ -106,8 +106,8 @@ const visibleLogs = computed(() => {
 })
 
 const connectWebSocket = (executionId: number) => {
-  // Use SockJS with the correct path
-  const socket = new SockJS('http://localhost:8080/ws')
+  // Use SockJS with relative path (works through nginx proxy)
+  const socket = new SockJS('/ws')
   stompClient = Stomp.over(socket)
   stompClient.debug = null // Disable debug logs
   

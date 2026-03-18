@@ -32,6 +32,8 @@
 
 该平台提供了字段容量风险检查功能，包括数据库连接管理、定时任务执行、风险结果分析和告警通知等核心业务功能。系统设计注重可扩展性和可维护性，采用多阶段构建优化镜像大小，并提供完整的监控和日志管理机制。
 
+**更新** 基于最新的代码变更，后端和前端都进行了基础镜像升级和构建流程优化。
+
 ## 项目结构
 
 该项目采用分层的微服务架构，每个组件都有独立的Docker配置和构建流程：
@@ -65,12 +67,12 @@ Frontend --> Backend
 ```
 
 **图表来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L91)
+- [docker-compose.yml:1-91](file://docker-compose.yml#L1-L91)
 
 **章节来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L91)
-- [backend/Dockerfile](file://backend/Dockerfile#L1-L44)
-- [frontend/Dockerfile](file://frontend/Dockerfile#L1-L35)
+- [docker-compose.yml:1-91](file://docker-compose.yml#L1-L91)
+- [backend/Dockerfile:1-47](file://backend/Dockerfile#L1-L47)
+- [frontend/Dockerfile:1-38](file://frontend/Dockerfile#L1-L38)
 
 ## 核心组件
 
@@ -89,15 +91,15 @@ MySQL服务使用官方8.0镜像，配置了完整的字符集支持和性能优
   - 时区: Asia/Shanghai
 
 **章节来源**
-- [docker-compose.yml](file://docker-compose.yml#L5-L28)
-- [mysql/conf/my.cnf](file://mysql/conf/my.cnf#L1-L31)
+- [docker-compose.yml:5-28](file://docker-compose.yml#L5-L28)
+- [mysql/conf/my.cnf:1-31](file://mysql/conf/my.cnf#L1-L31)
 
 ### Spring Boot后端服务
 
-后端采用多阶段构建，优化镜像大小和安全性：
+后端采用多阶段构建，优化镜像大小和安全性。**更新** 基础镜像从 `maven:3.8-openjdk-8-slim` 升级到 `eclipse-temurin:8-jdk`，运行阶段从 `openjdk:8-jre-slim` 升级到 `eclipse-temurin:8-jre`：
 
-- **构建阶段**: Maven + OpenJDK 8
-- **运行阶段**: OpenJDK 8 JRE slim
+- **构建阶段**: Eclipse Temurin 8 JDK + Maven
+- **运行阶段**: Eclipse Temurin 8 JRE
 - **容器名称**: fieldcheck-backend
 - **端口映射**: 8080:8080
 - **环境变量**:
@@ -106,22 +108,22 @@ MySQL服务使用官方8.0镜像，配置了完整的字符集支持和性能优
   - AES密钥: fieldcheck-aes-key
 
 **章节来源**
-- [backend/Dockerfile](file://backend/Dockerfile#L1-L44)
-- [backend/src/main/resources/application-docker.yml](file://backend/src/main/resources/application-docker.yml#L1-L46)
+- [backend/Dockerfile:1-47](file://backend/Dockerfile#L1-L47)
+- [backend/src/main/resources/application-docker.yml:1-46](file://backend/src/main/resources/application-docker.yml#L1-L46)
 
 ### Vue前端服务
 
-前端使用Nginx作为静态服务器，提供高性能的静态资源服务：
+前端使用Nginx作为静态服务器，提供高性能的静态资源服务。**更新** 基础镜像从 `node:18-alpine` 升级到 `node:22`，并添加了清理构建文件步骤：
 
-- **构建阶段**: Node.js 18 Alpine
+- **构建阶段**: Node.js 22
 - **运行阶段**: Nginx Alpine
 - **容器名称**: fieldcheck-frontend
 - **端口映射**: 80:80
 - **配置**: 支持Vue Router历史模式和WebSocket代理
 
 **章节来源**
-- [frontend/Dockerfile](file://frontend/Dockerfile#L1-L35)
-- [frontend/nginx.conf](file://frontend/nginx.conf#L1-L69)
+- [frontend/Dockerfile:1-38](file://frontend/Dockerfile#L1-L38)
+- [frontend/nginx.conf:1-69](file://frontend/nginx.conf#L1-L69)
 
 ## 架构概览
 
@@ -145,11 +147,11 @@ Backend-->>Frontend : 建立WebSocket连接
 ```
 
 **图表来源**
-- [docker-compose.yml](file://docker-compose.yml#L30-L78)
-- [frontend/nginx.conf](file://frontend/nginx.conf#L45-L57)
+- [docker-compose.yml:30-78](file://docker-compose.yml#L30-L78)
+- [frontend/nginx.conf:45-57](file://frontend/nginx.conf#L45-L57)
 
 **章节来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L91)
+- [docker-compose.yml:1-91](file://docker-compose.yml#L1-L91)
 
 ## 详细组件分析
 
@@ -176,8 +178,8 @@ Users --> Ready
 ```
 
 **图表来源**
-- [docker-compose.yml](file://docker-compose.yml#L5-L28)
-- [mysql/init/01_init_schema.sql](file://mysql/init/01_init_schema.sql#L1-L185)
+- [docker-compose.yml:5-28](file://docker-compose.yml#L5-L28)
+- [mysql/init/01_init_schema.sql:1-185](file://mysql/init/01_init_schema.sql#L1-L185)
 
 #### 健康检查机制
 
@@ -205,29 +207,30 @@ Retry --> Failure[检查失败]
 ```
 
 **图表来源**
-- [docker-compose.yml](file://docker-compose.yml#L22-L26)
-- [docker-compose.yml](file://docker-compose.yml#L52-L57)
-- [docker-compose.yml](file://docker-compose.yml#L72-L76)
+- [docker-compose.yml:22-26](file://docker-compose.yml#L22-L26)
+- [docker-compose.yml:52-57](file://docker-compose.yml#L52-L57)
+- [docker-compose.yml:72-76](file://docker-compose.yml#L72-L76)
 
 **章节来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L91)
+- [docker-compose.yml:1-91](file://docker-compose.yml#L1-L91)
 
 ### Dockerfile构建优化
 
 #### 后端多阶段构建
 
-后端采用了标准的多阶段构建策略：
+后端采用了标准的多阶段构建策略。**更新** 基础镜像升级带来了更好的兼容性和安全性：
 
 ```mermaid
 classDiagram
 class BuilderStage {
-+使用Maven镜像
++使用Eclipse Temurin 8 JDK
++安装Maven工具
 +下载依赖
 +编译源码
 +打包JAR
 }
 class RuntimeStage {
-+使用JRE镜像
++使用Eclipse Temurin 8 JRE
 +安装必要工具
 +创建非root用户
 +配置健康检查
@@ -244,11 +247,11 @@ RuntimeStage --> Optimizations : "应用优化"
 ```
 
 **图表来源**
-- [backend/Dockerfile](file://backend/Dockerfile#L1-L44)
+- [backend/Dockerfile:1-47](file://backend/Dockerfile#L1-L47)
 
 #### 前端多阶段构建
 
-前端同样采用多阶段构建优化：
+前端同样采用多阶段构建优化。**更新** Node.js版本升级和清理步骤优化：
 
 ```mermaid
 flowchart LR
@@ -264,11 +267,11 @@ Minify --> Optimize[资源优化]
 ```
 
 **图表来源**
-- [frontend/Dockerfile](file://frontend/Dockerfile#L1-L35)
+- [frontend/Dockerfile:1-38](file://frontend/Dockerfile#L1-L38)
 
 **章节来源**
-- [backend/Dockerfile](file://backend/Dockerfile#L1-L44)
-- [frontend/Dockerfile](file://frontend/Dockerfile#L1-L35)
+- [backend/Dockerfile:1-47](file://backend/Dockerfile#L1-L47)
+- [frontend/Dockerfile:1-38](file://frontend/Dockerfile#L1-L38)
 
 ### 数据库配置优化
 
@@ -283,7 +286,7 @@ MySQL配置文件包含了生产环境的关键参数：
 | lower_case_table_names | 1 | 表名大小写不敏感 |
 
 **章节来源**
-- [mysql/conf/my.cnf](file://mysql/conf/my.cnf#L1-L31)
+- [mysql/conf/my.cnf:1-31](file://mysql/conf/my.cnf#L1-L31)
 
 ### 应用配置详解
 
@@ -309,10 +312,10 @@ Management --> Health[健康检查]
 ```
 
 **图表来源**
-- [backend/src/main/resources/application-docker.yml](file://backend/src/main/resources/application-docker.yml#L1-L46)
+- [backend/src/main/resources/application-docker.yml:1-46](file://backend/src/main/resources/application-docker.yml#L1-L46)
 
 **章节来源**
-- [backend/src/main/resources/application-docker.yml](file://backend/src/main/resources/application-docker.yml#L1-L46)
+- [backend/src/main/resources/application-docker.yml:1-46](file://backend/src/main/resources/application-docker.yml#L1-L46)
 
 ## 依赖关系分析
 
@@ -336,8 +339,8 @@ Ready3 --> AllReady[全部就绪]
 ```
 
 **图表来源**
-- [docker-compose.yml](file://docker-compose.yml#L49-L51)
-- [docker-compose.yml](file://docker-compose.yml#L70-L71)
+- [docker-compose.yml:49-51](file://docker-compose.yml#L49-L51)
+- [docker-compose.yml:70-71](file://docker-compose.yml#L70-L71)
 
 ### 网络通信
 
@@ -357,27 +360,28 @@ Backend -.->|内部DNS| MySQL
 ```
 
 **图表来源**
-- [docker-compose.yml](file://docker-compose.yml#L27-L28)
-- [docker-compose.yml](file://docker-compose.yml#L58-L59)
-- [docker-compose.yml](file://docker-compose.yml#L77-L78)
+- [docker-compose.yml:27-28](file://docker-compose.yml#L27-L28)
+- [docker-compose.yml:58-59](file://docker-compose.yml#L58-L59)
+- [docker-compose.yml:77-78](file://docker-compose.yml#L77-L78)
 
 **章节来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L91)
+- [docker-compose.yml:1-91](file://docker-compose.yml#L1-L91)
 
 ## 性能考虑
 
 ### 镜像优化策略
 
-系统采用了多种镜像优化技术：
+系统采用了多种镜像优化技术。**更新** 基础镜像升级带来了更好的性能和安全性：
 
 1. **多阶段构建**: 减少最终镜像大小
 2. **Alpine Linux**: 使用轻量级基础镜像
 3. **依赖缓存**: 利用Docker层缓存机制
 4. **非root用户**: 提升容器安全性
+5. **Eclipse Temurin**: 使用OpenJDK的替代品，提供更好的兼容性
 
 ### JVM性能调优
 
-后端JVM参数经过精心配置：
+后端JVM参数经过精心配置。**更新** 基础镜像升级不影响JVM配置：
 
 - **初始堆大小**: 512MB
 - **最大堆大小**: 1024MB  
@@ -421,9 +425,9 @@ MySQL配置针对高并发场景优化：
 3. 验证配置文件
 
 **章节来源**
-- [docker-compose.yml](file://docker-compose.yml#L22-L26)
-- [docker-compose.yml](file://docker-compose.yml#L52-L57)
-- [docker-compose.yml](file://docker-compose.yml#L72-L76)
+- [docker-compose.yml:22-26](file://docker-compose.yml#L22-L26)
+- [docker-compose.yml:52-57](file://docker-compose.yml#L52-L57)
+- [docker-compose.yml:72-76](file://docker-compose.yml#L72-L76)
 
 ### 日志分析
 
@@ -462,8 +466,8 @@ docker-compose exec frontend cat /var/log/nginx/error.log
 | AES_SECRET | fieldcheck-aes-key | AES加密密钥 |
 
 **章节来源**
-- [docker-compose.yml](file://docker-compose.yml#L9-L14)
-- [docker-compose.yml](file://docker-compose.yml#L37-L43)
+- [docker-compose.yml:9-14](file://docker-compose.yml#L9-L14)
+- [docker-compose.yml:37-43](file://docker-compose.yml#L37-L43)
 
 ## 部署步骤
 
@@ -544,12 +548,14 @@ docker-compose down
    - 用户: fieldcheck
 
 **章节来源**
-- [start.sh](file://start.sh#L1-L80)
-- [docker-compose.yml](file://docker-compose.yml#L35-L41)
+- [start.sh:1-80](file://start.sh#L1-L80)
+- [docker-compose.yml:35-41](file://docker-compose.yml#L35-L41)
 
 ## 结论
 
 本Docker容器化部署方案提供了完整的MySQL字段容量风险检查平台的自动化部署能力。通过精心设计的多阶段构建、健康检查机制和服务依赖管理，确保了系统的稳定性、可维护性和可扩展性。
+
+**更新** 最新的代码变更进一步提升了系统的现代化程度和性能表现。后端从 `maven:3.8-openjdk-8-slim` 升级到 `eclipse-temurin:8-jdk`，前端从 `node:18-alpine` 升级到 `node:22`，这些升级带来了更好的兼容性、安全性和构建效率。
 
 ### 主要优势
 
@@ -558,6 +564,7 @@ docker-compose down
 3. **自动化管理**: 通过docker-compose实现一键部署
 4. **可观测性**: 完整的健康检查和日志记录机制
 5. **安全性**: 非root用户运行、环境变量配置等安全措施
+6. **现代化技术栈**: 使用最新的Node.js和Java运行时版本
 
 ### 未来改进方向
 
