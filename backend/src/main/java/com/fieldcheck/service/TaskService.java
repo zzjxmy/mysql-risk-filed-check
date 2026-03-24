@@ -121,8 +121,9 @@ public class TaskService {
         if (dto.getStatus() != null) task.setStatus(dto.getStatus());
 
         if (dto.getAlertConfigIds() != null) {
-            // Delete existing associations
+            // Delete existing associations and flush immediately to avoid unique constraint violation
             taskAlertConfigRepository.deleteByTaskId(task.getId());
+            taskAlertConfigRepository.flush();
             
             // Create new associations
             for (Long alertConfigId : dto.getAlertConfigIds()) {
