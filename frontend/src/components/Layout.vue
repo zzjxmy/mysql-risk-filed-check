@@ -31,6 +31,10 @@
             <el-icon><Link /></el-icon>
             <span>连接管理</span>
           </el-menu-item>
+          <el-menu-item index="/alerts">
+            <el-icon><Bell /></el-icon>
+            <span>告警配置</span>
+          </el-menu-item>
           <el-menu-item index="/table-stats">
             <el-icon><DataAnalysis /></el-icon>
             <span>表空间分析</span>
@@ -57,10 +61,6 @@
           <el-menu-item index="/whitelist">
             <el-icon><Document /></el-icon>
             <span>白名单</span>
-          </el-menu-item>
-          <el-menu-item index="/alerts">
-            <el-icon><Bell /></el-icon>
-            <span>告警配置</span>
           </el-menu-item>
         </el-sub-menu>
 
