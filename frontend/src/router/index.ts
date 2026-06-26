@@ -31,6 +31,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '连接管理' }
       },
       {
+        path: 'table-stats',
+        name: 'TableStats',
+        component: () => import('../views/table/TableStats.vue'),
+        meta: { title: '表空间分析' }
+      },
+      {
         path: 'tasks',
         name: 'Tasks',
         component: () => import('../views/task/TaskList.vue'),
