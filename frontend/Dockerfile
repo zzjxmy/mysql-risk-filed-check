@@ -18,6 +18,10 @@ RUN npm run build
 # 生产阶段
 FROM nginx:alpine
 
+RUN apk add --no-cache tzdata
+
+ENV TZ=Asia/Shanghai
+
 # 复制构建产物
 COPY --from=builder /app/dist /usr/share/nginx/html
 

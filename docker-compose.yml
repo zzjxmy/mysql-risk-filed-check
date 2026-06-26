@@ -3,15 +3,15 @@ version: '3.8'
 services:
   # MySQL 数据库
   mysql:
-    image: mysql:8.0
+    image: mysql:5.7
     container_name: fieldcheck-mysql
     restart: unless-stopped
     environment:
+      TZ: Asia/Shanghai
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123456}
       MYSQL_DATABASE: fieldcheck
       MYSQL_USER: fieldcheck
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-fieldcheck123}
-      TZ: Asia/Shanghai
     ports:
       - "3306:3306"
     volumes:
@@ -35,12 +35,15 @@ services:
     container_name: fieldcheck-backend
     restart: unless-stopped
     environment:
+      TZ: Asia/Shanghai
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/fieldcheck?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai
       SPRING_DATASOURCE_USERNAME: fieldcheck
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-fieldcheck123}
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-key-for-jwt-token-generation-2024}
       AES_SECRET: ${AES_SECRET:-fieldcheck-aes-key}
+      PT_ARCHIVER_PATH: ${PT_ARCHIVER_PATH:-/usr/bin/pt-archiver}
+      MYSQL_CLIENT_PATH: ${MYSQL_CLIENT_PATH:-mysql}
     ports:
       - "8080:8080"
     volumes:
@@ -65,6 +68,8 @@ services:
       dockerfile: Dockerfile
     container_name: fieldcheck-frontend
     restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
     ports:
       - "80:80"
     depends_on:

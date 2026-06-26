@@ -73,6 +73,36 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '告警配置' }
       },
       {
+        path: 'archive-tasks',
+        name: 'ArchiveTasks',
+        component: () => import('../views/archive/ArchiveTaskList.vue'),
+        meta: { title: '归档任务' }
+      },
+      {
+        path: 'archive-tasks/create',
+        name: 'CreateArchiveTask',
+        component: () => import('../views/archive/ArchiveTaskForm.vue'),
+        meta: { title: '创建归档任务', roles: ['ADMIN'] }
+      },
+      {
+        path: 'archive-tasks/:id/edit',
+        name: 'EditArchiveTask',
+        component: () => import('../views/archive/ArchiveTaskForm.vue'),
+        meta: { title: '编辑归档任务', roles: ['ADMIN'] }
+      },
+      {
+        path: 'archive-tasks/:id/monitor',
+        name: 'ArchiveTaskMonitor',
+        component: () => import('../views/archive/ArchiveTaskMonitor.vue'),
+        meta: { title: '归档监控' }
+      },
+      {
+        path: 'archive-executions',
+        name: 'ArchiveExecutions',
+        component: () => import('../views/archive/ArchiveExecutionList.vue'),
+        meta: { title: '归档执行记录' }
+      },
+      {
         path: 'executions',
         name: 'Executions',
         component: () => import('../views/execution/ExecutionList.vue'),

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fieldcheck.entity.AlertConfig;
 import com.fieldcheck.entity.AlertType;
+import com.fieldcheck.entity.ArchiveExecution;
 import com.fieldcheck.entity.TaskExecution;
 import com.fieldcheck.repository.AlertConfigRepository;
 import lombok.RequiredArgsConstructor;
@@ -139,6 +140,24 @@ public class AlertService {
         }
     }
 
+    public void sendArchiveAlert(ArchiveExecution execution, List<AlertConfig> configs) {
+        String message = buildArchiveAlertMessage(execution);
+
+        for (AlertConfig config : configs) {
+            if (!config.getEnabled()) continue;
+
+            try {
+                if (config.getAlertType() == AlertType.DINGTALK) {
+                    sendDingTalkAlert(config, message);
+                } else if (config.getAlertType() == AlertType.EMAIL) {
+                    sendArchiveEmailAlert(config, execution, message);
+                }
+            } catch (Exception e) {
+                log.error("Failed to send archive alert via {}: {}", config.getName(), e.getMessage());
+            }
+        }
+    }
+
     private String buildAlertMessage(TaskExecution execution) {
         StringBuilder sb = new StringBuilder();
         sb.append("## MySQL字段容量检查报告\n\n");
@@ -153,6 +172,20 @@ public class AlertService {
             sb.append("\n**请及时查看详情并处理风险！**");
         }
         
+        return sb.toString();
+    }
+
+    private String buildArchiveAlertMessage(ArchiveExecution execution) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("## MySQL归档任务执行失败\n\n");
+        sb.append("**任务名称**: ").append(execution.getTask().getName()).append("\n");
+        sb.append("**执行状态**: ").append(execution.getStatus().name()).append("\n");
+        sb.append("**已完成步骤**: ").append(execution.getProcessedSteps()).append("/").append(execution.getTotalSteps()).append("\n");
+        sb.append("**跳过步骤**: ").append(execution.getSkippedSteps()).append("\n");
+        sb.append("**退出码**: ").append(execution.getExitCode()).append("\n");
+        sb.append("**错误信息**: ").append(execution.getErrorMessage()).append("\n");
+        sb.append("**开始时间**: ").append(execution.getStartTime()).append("\n");
+        sb.append("**结束时间**: ").append(execution.getEndTime()).append("\n");
         return sb.toString();
     }
 
@@ -219,6 +252,26 @@ public class AlertService {
 
         mailSender.send(mailMessage);
         log.info("Email alert sent successfully to {}", recipients);
+    }
+
+    private void sendArchiveEmailAlert(AlertConfig config, ArchiveExecution execution, String message) throws Exception {
+        JsonNode configJson = objectMapper.readTree(config.getConfig());
+        String recipients = configJson.get("emailRecipients") != null ?
+                configJson.get("emailRecipients").asText() :
+                configJson.get("recipients").asText();
+
+        JavaMailSenderImpl mailSender = createMailSender(configJson);
+        String username = configJson.has("senderEmail") ? configJson.get("senderEmail").asText() :
+                (configJson.has("smtpUsername") ? configJson.get("smtpUsername").asText() : "");
+
+        SimpleMailMessage mailMessage = new SimpleMailMessage();
+        mailMessage.setFrom(username);
+        mailMessage.setTo(recipients.split(","));
+        mailMessage.setSubject("MySQL归档任务执行失败 - " + execution.getTask().getName());
+        mailMessage.setText(message.replace("**", "").replace("##", ""));
+
+        mailSender.send(mailMessage);
+        log.info("Archive email alert sent successfully to {}", recipients);
     }
 
     private void sendTestEmailAlert(AlertConfig config, String message) throws Exception {

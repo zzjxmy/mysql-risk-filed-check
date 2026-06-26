@@ -1,5 +1,13 @@
 import request from '@/utils/request'
 
+export interface AlertConfig {
+  id: number
+  name: string
+  alertType: string
+  enabled: boolean
+  remark?: string
+}
+
 export const alertApi = {
   getList(params: any) {
     return request.get('/alerts', { params })

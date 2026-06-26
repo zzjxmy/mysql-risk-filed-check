@@ -15,15 +15,27 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none
     show-sql: false
     properties:
       hibernate:
         format_sql: false
 
+  quartz:
+    job-store-type: jdbc
+    jdbc:
+      initialize-schema: never
+
 jwt:
   secret: ${JWT_SECRET:your-super-secret-key-for-jwt-token-generation-2024}
   expiration: 86400000
+
+archive:
+  pt-archiver-path: ${PT_ARCHIVER_PATH:/usr/bin/pt-archiver}
+  mysql-path: ${MYSQL_CLIENT_PATH:mysql}
+
+encryption:
+  aes-key: ${AES_SECRET:fieldcheck-aes-key}
 
 aes:
   secret: ${AES_SECRET:fieldcheck-aes-key}

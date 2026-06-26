@@ -1,12 +1,14 @@
-# MySQL 字段容量风险检查平台
+# MySQL 数据治理平台
 
-一个用于检查 MySQL 数据库字段容量风险的全栈 Web 应用，帮助 DBA 和开发团队及时发现潜在的字段溢出问题。
+一个面向 MySQL 的数据治理全栈 Web 应用，覆盖字段容量风险检查和数据归档两类场景，帮助 DBA 和开发团队及时发现字段溢出风险，并通过可配置任务完成历史数据归档。
 
 ## 功能特性
 
 ### 核心功能
 - **数据库连接管理** - 支持多数据库连接配置，密码 AES 加密存储，连接测试
 - **检查任务管理** - 创建、编辑、删除检查任务，支持数据库和表名模式匹配
+- **数据归档任务** - 基于 `pt-archiver` 执行跨库/跨表归档，支持多步骤、变量、复制保留源数据或移动删除源数据
+- **归档执行记录** - 独立记录归档执行状态、步骤进度、退出码、日志路径，支持日志查看和下载
 - **定时调度执行** - 基于 Quartz 的定时任务调度，支持 Cron 表达式
 - **实时日志监控** - WebSocket 实时推送执行日志，支持任务执行中监控
 - **风险结果展示** - 仪表盘可视化、风险列表、详情查看，支持按执行记录筛选
@@ -35,6 +37,7 @@
 - Quartz Scheduler
 - WebSocket (STOMP)
 - Apache POI (Excel 导出)
+- Percona Toolkit `pt-archiver` (数据归档)
 - MySQL 5.7+ / 8.0+
 - Maven
 
@@ -53,6 +56,7 @@
 - Node.js 16+
 - MySQL 5.7+ 或 MySQL 8.0+
 - Maven 3.6+
+- Percona Toolkit 3.x（需要提供 `pt-archiver` 可执行文件）
 
 ## 快速开始
 
@@ -68,12 +72,16 @@ mysql -u root -p -e "CREATE DATABASE fieldcheck DEFAULT CHARACTER SET utf8mb4 CO
 ```
 
 ### 3. 配置后端
-编辑 `backend/src/main/resources/application.yml`：n```yaml
+编辑 `backend/src/main/resources/application.yml`：
+```yaml
 spring:
   datasource:
     url: jdbc:mysql://localhost:3306/fieldcheck?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
     password: your_password
+
+archive:
+  pt-archiver-path: /opt/homebrew/bin/pt-archiver  # 按实际安装路径调整
 ```
 
 ### 4. 启动后端
@@ -107,6 +115,7 @@ mysql-risk-filed-check/
 │   ├── src/main/java/
 │   │   └── com/fieldcheck/
 │   │       ├── aspect/             # AOP 切面（审计日志）
+│   │       ├── archive/            # 数据归档执行引擎
 │   │       ├── config/             # 配置类
 │   │       ├── controller/         # REST API 控制器
 │   │       ├── dto/                # 数据传输对象
@@ -127,6 +136,7 @@ mysql-risk-filed-check/
 │   │   ├── stores/                # Pinia 状态管理
 │   │   ├── views/                 # 页面视图
 │   │   │   ├── alert/             # 告警配置
+│   │   │   ├── archive/           # 数据归档任务和执行记录
 │   │   │   ├── connection/        # 数据库连接
 │   │   │   ├── execution/         # 执行记录
 │   │   │   ├── risk/              # 风险结果
@@ -159,6 +169,22 @@ mysql-risk-filed-check/
 - 立即执行或定时调度
 - 实时监控执行进度
 
+### 数据归档任务
+- 创建归档任务，配置源连接、目标连接、Cron 表达式和告警配置
+- 每个任务支持多个归档步骤，步骤可以指定源库表、目标库表、WHERE 条件模板、批次大小和进度输出间隔
+- 支持变量查询，执行时先计算变量，再替换步骤中的条件模板
+- 支持两种归档模式：
+  - `deleteSource=false`：只复制到目标表，不删除源表数据
+  - `deleteSource=true`：复制到目标表后删除符合条件的源表数据
+- 归档底层调用 `pt-archiver`，目标表需要提前创建，系统不会自动创建目标库或同源表
+- 如果目标表不存在、连接失败或 `pt-archiver` 返回非 0 退出码，归档执行会标记为失败，并触发任务关联的告警配置
+
+### 归档执行记录
+- 查看所有归档执行记录
+- 按任务名称、状态、触发方式筛选
+- 查看执行日志、下载日志文件
+- 实时监控执行中的步骤日志
+
 ### 执行记录
 - 查看所有执行记录
 - 按任务名称、状态、触发方式筛选
@@ -181,7 +207,7 @@ mysql-risk-filed-check/
 - 配置钉钉机器人告警
 - 配置邮件告警
 - 测试告警发送
-- 任务关联告警配置
+- 字段风险检查任务和数据归档任务都可以关联告警配置
 
 ### 系统管理
 - 用户管理：添加、编辑、删除用户，重置密码
@@ -223,6 +249,14 @@ app:
   log-path: ./logs/executions  # 执行日志存储路径
 ```
 
+### 数据归档配置
+```yaml
+archive:
+  pt-archiver-path: /usr/bin/pt-archiver
+```
+
+本地开发时请按实际路径配置，例如 macOS Homebrew 常见路径为 `/opt/homebrew/bin/pt-archiver`。Docker 部署时可通过环境变量 `PT_ARCHIVER_PATH` 覆盖。
+
 ### 线程池配置
 ```yaml
 app:
@@ -244,6 +278,16 @@ app:
 | 执行 | GET /api/executions | 获取执行记录 |
 | 执行 | GET /api/executions/{id}/log | 获取日志内容 |
 | 执行 | GET /api/executions/{id}/log/download | 下载日志 |
+| 归档任务 | GET /api/archive-tasks | 获取归档任务列表 |
+| 归档任务 | POST /api/archive-tasks | 创建归档任务 |
+| 归档任务 | PUT /api/archive-tasks/{id} | 更新归档任务 |
+| 归档任务 | DELETE /api/archive-tasks/{id} | 删除归档任务 |
+| 归档任务 | POST /api/archive-tasks/{id}/run | 执行归档任务 |
+| 归档任务 | POST /api/archive-tasks/{id}/stop | 停止归档任务 |
+| 归档执行 | GET /api/archive-executions | 获取归档执行记录 |
+| 归档执行 | GET /api/archive-executions/{id} | 获取归档执行详情 |
+| 归档执行 | GET /api/archive-executions/{id}/log | 获取归档日志内容 |
+| 归档执行 | GET /api/archive-executions/{id}/log/download | 下载归档日志 |
 | 风险 | GET /api/risks | 获取风险列表 |
 | 风险 | GET /api/risks/export | 导出 Excel |
 | 风险 | PUT /api/risks/{id}/status | 更新状态 |
@@ -265,6 +309,37 @@ docker build -t fieldcheck-frontend ./frontend
 # 使用 docker-compose
 docker-compose up -d
 ```
+
+Docker 部署时后端容器需要能访问 `pt-archiver`。如果镜像中安装路径不是 `/usr/bin/pt-archiver`，请设置环境变量：
+
+```bash
+PT_ARCHIVER_PATH=/path/to/pt-archiver docker-compose up -d
+```
+
+## 已验证行为
+
+### 大数据归档
+- 使用真实 `pt-archiver 3.7.1` 通过后端 API 执行过 20 万行数据归档验证
+- 测试任务分为两步：
+  - 前 10 万行只复制，源表保留
+  - 后 10 万行移动归档，复制后删除源表数据
+- 执行结果为 `SUCCESS`，目标表最终 20 万行完整，源表仅保留前 10 万行
+- 第二步日志显示 `SELECT 100000 / INSERT 100000 / DELETE 100000`
+
+### 源数据删除
+- `deleteSource=true` 会删除符合 WHERE 条件的源表数据
+- 当前功能不会 `DROP TABLE`，也不会删除整张源表结构
+- 如果 WHERE 条件覆盖整张表，则效果是清空符合条件的数据行，而不是删除表
+
+### 目标表创建
+- 归档不会自动创建目标库或目标表
+- 目标表不存在时，`pt-archiver` 会失败，归档执行状态会变为 `FAILED`
+- 建议先用 `CREATE TABLE target LIKE source` 或正式建表脚本准备目标表结构
+
+### 归档失败告警
+- 归档失败后会调用任务关联的告警配置
+- 本地验证中，缺失目标表导致归档失败，后端实际发出了 DINGTALK 类型的 HTTP POST 告警请求
+- 真实外部钉钉 webhook 发送需要在部署环境中确认网络、机器人安全设置和密钥配置
 
 ### 生产环境配置
 1. 修改数据库连接配置
@@ -314,6 +389,9 @@ server {
 - [x] 用户权限管理
 - [x] 审计日志
 - [x] LDAP 认证
+- [x] 数据归档任务
+- [x] 归档执行记录
+- [x] 归档失败告警
 - [ ] 更多字段类型支持（ENUM、SET、JSON 等）
 - [ ] 历史趋势分析
 - [ ] 风险修复建议

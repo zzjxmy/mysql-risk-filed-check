@@ -22,7 +22,12 @@ WORKDIR /app
 # 安装必要的工具
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    default-mysql-client \
+    percona-toolkit \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
+
+ENV TZ=Asia/Shanghai
 
 # 从构建阶段复制 jar 文件
 COPY --from=builder /app/target/*.jar app.jar
@@ -36,7 +41,7 @@ USER fieldcheck
 EXPOSE 8080
 
 # JVM 参数
-ENV JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseConcMarkSweepGC"
+ENV JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseConcMarkSweepGC -Duser.timezone=Asia/Shanghai"
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
