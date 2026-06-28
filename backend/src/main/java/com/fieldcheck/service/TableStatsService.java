@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -21,6 +23,9 @@ import java.util.List;
 public class TableStatsService {
 
     private final ConnectionService connectionService;
+    private static final String[] EXPORT_HEADERS = {
+            "库名", "表名", "表备注", "数据量", "数据大小(M)", "索引大小(M)", "总大小(M)", "碎片大小(M)", "碎片率(%)", "表引擎"
+    };
 
     public List<TableStatsDTO> getTableStats(Long connectionId, String schema, String keyword, Double minFragmentMb) {
         DbConnection dbConnection = connectionService.getConnection(connectionId);
@@ -54,6 +59,39 @@ public class TableStatsService {
             }
         } catch (SQLException e) {
             throw new RuntimeException("查询表空间信息失败: " + e.getMessage(), e);
+        }
+    }
+
+    public static byte[] exportToExcel(List<TableStatsDTO> stats) throws IOException {
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+             org.apache.poi.xssf.usermodel.XSSFWorkbook workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
+            org.apache.poi.xssf.usermodel.XSSFSheet sheet = workbook.createSheet("表空间分析");
+            org.apache.poi.xssf.usermodel.XSSFRow headerRow = sheet.createRow(0);
+            for (int i = 0; i < EXPORT_HEADERS.length; i++) {
+                headerRow.createCell(i).setCellValue(EXPORT_HEADERS[i]);
+            }
+
+            for (int i = 0; i < stats.size(); i++) {
+                TableStatsDTO stat = stats.get(i);
+                org.apache.poi.xssf.usermodel.XSSFRow row = sheet.createRow(i + 1);
+                row.createCell(0).setCellValue(valueOrEmpty(stat.getSchemaName()));
+                row.createCell(1).setCellValue(valueOrEmpty(stat.getTableName()));
+                row.createCell(2).setCellValue(valueOrEmpty(stat.getTableComment()));
+                row.createCell(3).setCellValue(valueOrZero(stat.getTableRows()));
+                row.createCell(4).setCellValue(valueOrZero(stat.getDataSizeMb()));
+                row.createCell(5).setCellValue(valueOrZero(stat.getIndexSizeMb()));
+                row.createCell(6).setCellValue(valueOrZero(stat.getTotalSizeMb()));
+                row.createCell(7).setCellValue(valueOrZero(stat.getFragmentSizeMb()));
+                row.createCell(8).setCellValue(valueOrZero(stat.getFragmentPercent()));
+                row.createCell(9).setCellValue(valueOrEmpty(stat.getEngine()));
+            }
+
+            int[] widths = {18, 28, 32, 14, 16, 16, 16, 16, 14, 14};
+            for (int i = 0; i < widths.length; i++) {
+                sheet.setColumnWidth(i, widths[i] * 256);
+            }
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
         }
     }
 
@@ -110,6 +148,14 @@ public class TableStatsService {
                 .fragmentPercent(resultSet.getDouble("fragment_percent"))
                 .engine(resultSet.getString("engine"))
                 .build();
+    }
+
+    private static String valueOrEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
+    private static double valueOrZero(Number value) {
+        return value == null ? 0 : value.doubleValue();
     }
 
     @Data

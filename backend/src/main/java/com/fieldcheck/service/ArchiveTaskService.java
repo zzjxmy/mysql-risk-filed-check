@@ -164,7 +164,7 @@ public class ArchiveTaskService {
                     .charset(stepDTO.getCharset() != null ? stepDTO.getCharset() : "UTF8")
                     .limitSize(stepDTO.getLimitSize() != null ? stepDTO.getLimitSize() : 5000)
                     .progressSize(stepDTO.getProgressSize() != null ? stepDTO.getProgressSize() : 5000)
-                    .bulkInsert(stepDTO.getBulkInsert() != null ? stepDTO.getBulkInsert() : true)
+                    .bulkInsert(stepDTO.getBulkInsert() != null ? stepDTO.getBulkInsert() : false)
                     .commitEach(stepDTO.getCommitEach() != null ? stepDTO.getCommitEach() : true)
                     .extraOptions(stepDTO.getExtraOptions())
                     .sortOrder(stepDTO.getSortOrder() != null ? stepDTO.getSortOrder() : index)

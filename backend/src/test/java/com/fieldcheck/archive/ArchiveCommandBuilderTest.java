@@ -81,6 +81,70 @@ class ArchiveCommandBuilderTest {
     }
 
     @Test
+    void enablesLocalInfileInDsnsWhenBulkInsertIsUsed() {
+        ArchiveCommandSpec spec = ArchiveCommandSpec.builder()
+                .ptArchiverPath("/bin/pt-archiver")
+                .sourceHost("source-db")
+                .sourcePort(3306)
+                .sourceUsername("archiver")
+                .sourcePassword("secret")
+                .sourceDatabase("hsq_online")
+                .sourceTable("sys_kpi_log")
+                .destHost("archive-db")
+                .destPort(3306)
+                .destUsername("archiver")
+                .destPassword("archive-secret")
+                .destDatabase("legacy_hsq_online")
+                .destTable("sys_kpi_log")
+                .whereClause("id < 1100000")
+                .charset("UTF8")
+                .limitSize(5000)
+                .progressSize(5000)
+                .deleteSource(true)
+                .bulkInsert(true)
+                .commitEach(true)
+                .extraOptions(Collections.emptyList())
+                .build();
+
+        List<String> command = ArchiveCommandBuilder.build(spec);
+
+        assertTrue(command.get(command.indexOf("--source") + 1).contains(",L=1"));
+        assertTrue(command.get(command.indexOf("--dest") + 1).contains(",L=1"));
+    }
+
+    @Test
+    void leavesLocalInfileDisabledWhenBulkInsertIsNotUsed() {
+        ArchiveCommandSpec spec = ArchiveCommandSpec.builder()
+                .ptArchiverPath("/bin/pt-archiver")
+                .sourceHost("source-db")
+                .sourcePort(3306)
+                .sourceUsername("archiver")
+                .sourcePassword("secret")
+                .sourceDatabase("hsq_online")
+                .sourceTable("sys_kpi_log")
+                .destHost("archive-db")
+                .destPort(3306)
+                .destUsername("archiver")
+                .destPassword("archive-secret")
+                .destDatabase("legacy_hsq_online")
+                .destTable("sys_kpi_log")
+                .whereClause("id < 1100000")
+                .charset("UTF8")
+                .limitSize(5000)
+                .progressSize(5000)
+                .deleteSource(true)
+                .bulkInsert(false)
+                .commitEach(true)
+                .extraOptions(Collections.emptyList())
+                .build();
+
+        List<String> command = ArchiveCommandBuilder.build(spec);
+
+        assertFalse(command.get(command.indexOf("--source") + 1).contains(",L=1"));
+        assertFalse(command.get(command.indexOf("--dest") + 1).contains(",L=1"));
+    }
+
+    @Test
     void redactsPasswordsInLogCommand() {
         ArchiveCommandSpec spec = ArchiveCommandSpec.builder()
                 .ptArchiverPath("/bin/pt-archiver")

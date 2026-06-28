@@ -6,6 +6,7 @@
 
 ### 核心功能
 - **数据库连接管理** - 支持多数据库连接配置，密码 AES 加密存储，连接测试
+- **表空间分析** - 查看 MySQL 表数据量、索引大小、碎片大小和碎片率，支持按当前筛选导出 Excel
 - **检查任务管理** - 创建、编辑、删除检查任务，支持数据库和表名模式匹配
 - **数据归档任务** - 基于 `pt-archiver` 执行跨库/跨表归档，支持多步骤、变量、复制保留源数据或移动删除源数据
 - **归档执行记录** - 独立记录归档执行状态、步骤进度、退出码、日志路径，支持日志查看和下载
@@ -176,6 +177,7 @@ mysql-risk-filed-check/
 - 支持两种归档模式：
   - `deleteSource=false`：只复制到目标表，不删除源表数据
   - `deleteSource=true`：复制到目标表后删除符合条件的源表数据
+- 归档步骤可选择是否启用 `bulkInsert`。启用后使用 `LOAD DATA LOCAL INFILE`，目标库需要开启 `local_infile`；默认关闭以兼容未开启该能力的库
 - 归档底层调用 `pt-archiver`，目标表需要提前创建，系统不会自动创建目标库或同源表
 - 如果目标表不存在、连接失败或 `pt-archiver` 返回非 0 退出码，归档执行会标记为失败，并触发任务关联的告警配置
 
@@ -272,6 +274,8 @@ app:
 | 连接 | GET /api/connections | 获取连接列表 |
 | 连接 | POST /api/connections | 创建连接 |
 | 连接 | POST /api/connections/{id}/test | 测试连接 |
+| 表空间 | GET /api/table-stats | 获取表空间分析列表 |
+| 表空间 | GET /api/table-stats/export | 导出表空间分析 Excel |
 | 任务 | GET /api/tasks | 获取任务列表 |
 | 任务 | POST /api/tasks | 创建任务 |
 | 任务 | POST /api/tasks/{id}/run | 执行任务 |

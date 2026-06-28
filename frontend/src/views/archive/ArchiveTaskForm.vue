@@ -64,6 +64,19 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
+              <el-form-item>
+                <template #label>
+                  <span class="label-with-tip">
+                    批量导入
+                    <el-tooltip content="开启后使用 LOAD DATA LOCAL INFILE，目标库需开启 local_infile" placement="top">
+                      <el-icon class="tip-icon"><InfoFilled /></el-icon>
+                    </el-tooltip>
+                  </span>
+                </template>
+                <el-switch v-model="step.bulkInsert" active-text="开启" inactive-text="关闭" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
               <el-form-item label="源库">
                 <el-input v-model="step.sourceDatabase" placeholder="hsq_online" />
               </el-form-item>
@@ -125,6 +138,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { InfoFilled, Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { alertApi, type AlertConfig } from '../../api/alert'
@@ -151,7 +165,7 @@ const newStep = (): ArchiveStep => ({
   charset: 'UTF8',
   limitSize: 5000,
   progressSize: 5000,
-  bulkInsert: true,
+  bulkInsert: false,
   commitEach: true,
   extraOptions: '',
   enabled: true
@@ -244,6 +258,15 @@ onMounted(async () => {
   justify-content: space-between;
   margin-bottom: 12px;
   font-weight: 600;
+}
+.label-with-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.tip-icon {
+  color: #909399;
+  cursor: help;
 }
 .add-button {
   margin-bottom: 18px;

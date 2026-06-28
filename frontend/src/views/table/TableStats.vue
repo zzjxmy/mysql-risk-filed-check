@@ -4,10 +4,16 @@
       <template #header>
         <div class="card-header">
           <span>表空间分析</span>
-          <el-button type="primary" :loading="loading" @click="fetchStats">
-            <el-icon><Refresh /></el-icon>
-            刷新
-          </el-button>
+          <div class="header-actions">
+            <el-button :disabled="!searchForm.connectionId" :loading="exportLoading" @click="handleExport">
+              <el-icon><Download /></el-icon>
+              导出Excel
+            </el-button>
+            <el-button type="primary" :loading="loading" @click="fetchStats">
+              <el-icon><Refresh /></el-icon>
+              刷新
+            </el-button>
+          </div>
         </div>
       </template>
 
@@ -93,9 +99,10 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getConnections, type Connection } from '../../api/connection'
-import { getTableStats, type TableStats } from '../../api/tableStats'
+import { getTableStats, getTableStatsExportUrl, type TableStats } from '../../api/tableStats'
 
 const loading = ref(false)
+const exportLoading = ref(false)
 const connections = ref<Connection[]>([])
 const tableData = ref<TableStats[]>([])
 
@@ -162,6 +169,54 @@ const resetSearch = () => {
   fetchStats()
 }
 
+const currentParams = () => ({
+  connectionId: searchForm.connectionId as number,
+  schema: searchForm.schema || undefined,
+  keyword: searchForm.keyword || undefined,
+  minFragmentMb: searchForm.minFragmentMb
+})
+
+const handleExport = async () => {
+  if (!searchForm.connectionId) return
+  exportLoading.value = true
+  try {
+    const response = await fetch(getTableStatsExportUrl(currentParams()), {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    })
+    if (!response.ok) {
+      throw new Error('导出失败')
+    }
+
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+
+    const contentDisposition = response.headers.get('Content-Disposition')
+    let filename = `表空间分析_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')}.xlsx`
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']+)/i)
+      if (filenameMatch && filenameMatch[1]) {
+        filename = decodeURIComponent(filenameMatch[1])
+      }
+    }
+
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch (error) {
+    ElMessage.error('导出失败')
+  } finally {
+    exportLoading.value = false
+  }
+}
+
 const formatInteger = (value?: number) => value == null ? '-' : Math.round(value).toLocaleString('zh-CN')
 const formatMb = (value?: number) => value == null ? '-' : value.toFixed(2)
 const formatPercent = (value?: number) => value == null ? '-' : `${value.toFixed(2)}%`
@@ -179,6 +234,11 @@ onMounted(fetchConnections)
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .search-form {

@@ -213,7 +213,7 @@ CREATE TABLE `archive_task_step` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `created_at` datetime(6) NOT NULL,
   `updated_at` datetime(6) DEFAULT NULL,
-  `bulk_insert` bit(1) NOT NULL,
+  `bulk_insert` bit(1) NOT NULL DEFAULT b'0',
   `charset` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `commit_each` bit(1) NOT NULL,
   `delete_source` bit(1) NOT NULL,

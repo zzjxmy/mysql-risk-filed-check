@@ -57,7 +57,7 @@ public class ArchiveTaskStep extends BaseEntity {
 
     @Column(name = "bulk_insert", nullable = false)
     @Builder.Default
-    private Boolean bulkInsert = true;
+    private Boolean bulkInsert = false;
 
     @Column(name = "commit_each", nullable = false)
     @Builder.Default

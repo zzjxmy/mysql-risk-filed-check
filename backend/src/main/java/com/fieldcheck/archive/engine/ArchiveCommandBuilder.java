@@ -23,7 +23,8 @@ public final class ArchiveCommandBuilder {
                 spec.getSourceUsername(),
                 spec.getSourcePassword(),
                 spec.getSourceDatabase(),
-                spec.getSourceTable()));
+                spec.getSourceTable(),
+                Boolean.TRUE.equals(spec.getBulkInsert())));
         command.add("--dest");
         command.add(connectionSpec(
                 spec.getDestHost(),
@@ -31,7 +32,8 @@ public final class ArchiveCommandBuilder {
                 spec.getDestUsername(),
                 spec.getDestPassword(),
                 spec.getDestDatabase(),
-                spec.getDestTable()));
+                spec.getDestTable(),
+                Boolean.TRUE.equals(spec.getBulkInsert())));
         command.add("--where");
         command.add(spec.getWhereClause());
         command.add("--charset");
@@ -66,13 +68,14 @@ public final class ArchiveCommandBuilder {
         return String.join(" ", redacted);
     }
 
-    private static String connectionSpec(String host, Integer port, String username, String password, String database, String table) {
-        return "h=" + host +
+    private static String connectionSpec(String host, Integer port, String username, String password, String database, String table, boolean localInfile) {
+        String spec = "h=" + host +
                 ",P=" + valueOrDefault(port, 3306) +
                 ",u=" + username +
                 ",p=" + password +
                 ",D=" + database +
                 ",t=" + table;
+        return localInfile ? spec + ",L=1" : spec;
     }
 
     private static String valueOrDefault(String value, String defaultValue) {
