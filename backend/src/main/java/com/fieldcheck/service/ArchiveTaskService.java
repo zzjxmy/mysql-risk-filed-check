@@ -49,6 +49,7 @@ public class ArchiveTaskService {
         ArchiveTask task = ArchiveTask.builder()
                 .name(dto.getName())
                 .taskMode(valueOrDefault(dto.getTaskMode(), "NORMAL"))
+                .dryRun(Boolean.TRUE.equals(dto.getDryRun()))
                 .sourceConnection(getConnection(dto.getSourceConnectionId(), "源数据库连接不存在"))
                 .destConnection(getConnection(dto.getDestConnectionId(), "目标数据库连接不存在"))
                 .cronExpression(dto.getCronExpression())
@@ -68,6 +69,7 @@ public class ArchiveTaskService {
         ArchiveTask task = getTask(id);
         task.setName(dto.getName());
         task.setTaskMode(valueOrDefault(dto.getTaskMode(), "NORMAL"));
+        task.setDryRun(Boolean.TRUE.equals(dto.getDryRun()));
         task.setSourceConnection(getConnection(dto.getSourceConnectionId(), "源数据库连接不存在"));
         task.setDestConnection(getConnection(dto.getDestConnectionId(), "目标数据库连接不存在"));
         task.setCronExpression(dto.getCronExpression());
@@ -112,6 +114,7 @@ public class ArchiveTaskService {
         dto.setId(task.getId());
         dto.setName(task.getName());
         dto.setTaskMode(valueOrDefault(task.getTaskMode(), "NORMAL"));
+        dto.setDryRun(Boolean.TRUE.equals(task.getDryRun()));
         dto.setSourceConnectionId(task.getSourceConnection().getId());
         dto.setSourceConnectionName(task.getSourceConnection().getName());
         dto.setDestConnectionId(task.getDestConnection().getId());

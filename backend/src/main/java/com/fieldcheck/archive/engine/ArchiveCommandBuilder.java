@@ -60,6 +60,9 @@ public final class ArchiveCommandBuilder {
         if (!purgeMode && !Boolean.TRUE.equals(spec.getDeleteSource())) {
             command.add("--no-delete");
         }
+        if (Boolean.TRUE.equals(spec.getDryRun())) {
+            command.add("--dry-run");
+        }
         command.add("--statistics");
         if (spec.getExtraOptions() != null) {
             command.addAll(spec.getExtraOptions());

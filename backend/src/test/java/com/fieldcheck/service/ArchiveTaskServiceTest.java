@@ -133,6 +133,7 @@ class ArchiveTaskServiceTest {
         ArchiveTaskDTO dto = new ArchiveTaskDTO();
         dto.setName("haoshiqi/arch_cart");
         dto.setTaskMode("BATCH_ARCHIVE");
+        dto.setDryRun(true);
         dto.setSourceConnectionId(1L);
         dto.setDestConnectionId(2L);
         dto.setAlertConfigIds(Collections.emptySet());
@@ -144,6 +145,7 @@ class ArchiveTaskServiceTest {
         ArchiveTaskDTO result = archiveTaskService.toDTO(task);
 
         assertThat(result.getTaskMode()).isEqualTo("BATCH_ARCHIVE");
+        assertThat(result.getDryRun()).isTrue();
         assertThat(result.getVariables()).singleElement().satisfies(savedVariable -> {
             assertThat(savedVariable.getName()).isEqualTo("maxid");
             assertThat(savedVariable.getConnectionId()).isEqualTo(3L);

@@ -26,6 +26,10 @@ public class ArchiveTask extends BaseEntity {
     @Builder.Default
     private String taskMode = "NORMAL";
 
+    @Column(name = "dry_run", nullable = false)
+    @Builder.Default
+    private Boolean dryRun = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "source_connection_id", nullable = false)
     private DbConnection sourceConnection;

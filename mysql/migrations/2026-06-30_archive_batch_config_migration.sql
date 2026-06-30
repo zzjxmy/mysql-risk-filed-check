@@ -84,6 +84,12 @@ CALL add_column_if_missing(
 );
 
 CALL add_column_if_missing(
+    'archive_task',
+    'dry_run',
+    'ALTER TABLE `archive_task` ADD COLUMN `dry_run` bit(1) NOT NULL DEFAULT b''0'' AFTER `task_mode`'
+);
+
+CALL add_column_if_missing(
     'archive_task_variable',
     'connection_id',
     'ALTER TABLE `archive_task_variable` ADD COLUMN `connection_id` bigint(20) DEFAULT NULL AFTER `query_sql`'

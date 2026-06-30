@@ -42,6 +42,12 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="演练" width="80">
+          <template #default="{ row }">
+            <el-tag v-if="row.dryRun" type="warning">dry-run</el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="300" fixed="right">
           <template #default="{ row }">
             <el-button link type="success" @click="handleRun(row)">执行</el-button>

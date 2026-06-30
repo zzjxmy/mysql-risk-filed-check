@@ -185,6 +185,7 @@ CREATE TABLE `archive_task` (
   `remark` text COLLATE utf8mb4_unicode_ci,
   `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
   `task_mode` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'NORMAL',
+  `dry_run` bit(1) NOT NULL DEFAULT b'0',
   `source_connection_id` bigint(20) NOT NULL,
   `dest_connection_id` bigint(20) NOT NULL,
   `created_by` bigint(20) DEFAULT NULL,

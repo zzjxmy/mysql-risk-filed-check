@@ -35,6 +35,7 @@ public class ArchiveCommandSpec {
     private Boolean deleteSource;
     private Boolean bulkInsert;
     private Boolean commitEach;
+    private Boolean dryRun;
     @Builder.Default
     private List<String> extraOptions = new ArrayList<>();
 }

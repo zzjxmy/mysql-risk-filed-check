@@ -53,6 +53,7 @@ export interface ArchiveTask {
   id?: number
   name: string
   taskMode?: string
+  dryRun?: boolean
   sourceConnectionId: number
   sourceConnectionName?: string
   destConnectionId: number

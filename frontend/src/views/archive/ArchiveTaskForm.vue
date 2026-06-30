@@ -12,6 +12,17 @@
             <el-radio-button value="BATCH_ARCHIVE">批次归档</el-radio-button>
           </el-radio-group>
         </el-form-item>
+        <el-form-item>
+          <template #label>
+            <span class="label-with-tip">
+              演练模式
+              <el-tooltip content="开启后所有步骤命令都会追加 --dry-run" placement="top">
+                <el-icon class="tip-icon"><InfoFilled /></el-icon>
+              </el-tooltip>
+            </span>
+          </template>
+          <el-switch v-model="form.dryRun" active-text="开启" inactive-text="关闭" />
+        </el-form-item>
         <el-form-item label="源连接" prop="sourceConnectionId">
           <el-select v-model="form.sourceConnectionId" style="width: 100%" placeholder="请选择源库连接">
             <el-option v-for="conn in connections" :key="conn.id" :label="conn.name" :value="conn.id" />
@@ -271,6 +282,7 @@ type ArchiveTaskFormModel = ArchiveTask & { batchConfig: ArchiveBatchConfig }
 const form = reactive<ArchiveTaskFormModel>({
   name: '',
   taskMode: 'NORMAL',
+  dryRun: false,
   sourceConnectionId: 0,
   destConnectionId: 0,
   cronExpression: '',
@@ -308,6 +320,7 @@ const fetchTask = async () => {
     Object.assign(form, res.data)
     enabled.value = res.data.status === 'ENABLED'
     form.taskMode = form.taskMode || 'NORMAL'
+    form.dryRun = !!form.dryRun
     if (!form.variables) form.variables = []
     if (!form.steps || form.steps.length === 0) form.steps = [newStep()]
     form.steps = form.steps.map(step => ({

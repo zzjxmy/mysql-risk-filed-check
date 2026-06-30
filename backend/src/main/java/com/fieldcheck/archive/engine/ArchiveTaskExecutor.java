@@ -37,6 +37,9 @@ public class ArchiveTaskExecutor {
         ArchiveTask task = execution.getTask();
 
         try {
+            if (Boolean.TRUE.equals(task.getDryRun())) {
+                logCallback.accept(execution.getId(), "WARN|当前为 dry-run 演练模式，pt-archiver 不会归档或删除源表数据");
+            }
             Map<String, String> variables = loadVariables(task, execution, logCallback);
             List<ArchiveTaskStep> steps = enabledSteps(task);
             execution.setTotalSteps((int) steps.stream().filter(s -> Boolean.TRUE.equals(s.getEnabled())).count());
@@ -170,6 +173,7 @@ public class ArchiveTaskExecutor {
                 .deleteSource(step.getDeleteSource())
                 .bulkInsert(step.getBulkInsert())
                 .commitEach(step.getCommitEach())
+                .dryRun(task.getDryRun())
                 .extraOptions(parseExtraOptions(step.getExtraOptions()))
                 .build();
     }

@@ -205,6 +205,36 @@ class ArchiveCommandBuilderTest {
     }
 
     @Test
+    void appendsDryRunWhenTaskIsInDryRunMode() {
+        ArchiveCommandSpec spec = ArchiveCommandSpec.builder()
+                .ptArchiverPath("/bin/pt-archiver")
+                .stepMode("ARCHIVE")
+                .sourceHost("source-db")
+                .sourcePort(3306)
+                .sourceUsername("archiver")
+                .sourcePassword("secret")
+                .sourceDatabase("hsq_online")
+                .sourceTable("cart")
+                .destHost("archive-db")
+                .destPort(3306)
+                .destUsername("archiver")
+                .destPassword("archive-secret")
+                .destDatabase("legacy_hsq_online")
+                .destTable("cart")
+                .whereClause("user_id < 100")
+                .charset("UTF8")
+                .limitSize(5000)
+                .progressSize(5000)
+                .dryRun(true)
+                .extraOptions(Collections.emptyList())
+                .build();
+
+        List<String> command = ArchiveCommandBuilder.build(spec);
+
+        assertTrue(command.contains("--dry-run"));
+    }
+
+    @Test
     void redactsPasswordsInLogCommand() {
         ArchiveCommandSpec spec = ArchiveCommandSpec.builder()
                 .ptArchiverPath("/bin/pt-archiver")

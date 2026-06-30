@@ -18,6 +18,8 @@ public class ArchiveTaskDTO {
 
     private String taskMode;
 
+    private Boolean dryRun;
+
     @NotNull(message = "源数据库连接不能为空")
     private Long sourceConnectionId;
 
