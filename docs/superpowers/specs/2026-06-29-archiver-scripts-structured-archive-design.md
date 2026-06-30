@@ -1,84 +1,87 @@
-# Archiver Scripts Structured Archive Design
+# Archiver 脚本结构化归档设计
 
-## Background
+## 背景
 
-The repository contains historical shell scripts under `archiver/` that run `pt-archiver` directly. The current system already has archive tasks, archive steps, variable queries, Quartz scheduling, execution logs, and alert integration, but the model only represents normal archive steps that always include a destination database.
+仓库里有一批历史归档脚本，集中放在 `archiver/` 目录下。这些脚本直接调用 `pt-archiver`，承担线上多业务库的数据归档、清理、迁移到 legacy 库等工作。
 
-The new direction is to stop running or importing shell scripts at runtime. Instead, the system will be enhanced so every script can be represented as structured archive configuration, then the historical scripts will be converted into SQL seed files that insert standard archive tasks, variables, batch settings, and steps.
+当前系统已经有归档任务、归档步骤、变量查询、Quartz 调度、执行日志和告警配置，但现有模型只覆盖一种默认场景：每个归档步骤都有源库和目标库，也就是始终带 `--dest` 的普通归档。
 
-## Goals
+新的方向是不再在系统里运行 bash，也不做运行时 bash 导入器。我们先补齐系统的结构化归档能力，再把历史脚本转换成可审查的 SQL seed 文件，用 SQL 直接写入标准的归档任务、变量、批次配置和步骤。
 
-- Represent every existing `archiver/**/*.sh` script as system-managed archive tasks.
-- Avoid a generic bash importer and avoid shell script execution as the long-term integration path.
-- Support pure delete operations that use `pt-archiver --purge` without `--dest`.
-- Support step-level source index names such as `i=idx_c_userid`.
-- Support single-value variable queries such as `maxid=$(mysql ... "select max(id) ...")`.
-- Support complex order-style scripts by decomposing them into batch archive tasks instead of preserving while loops in bash.
-- Produce reviewable SQL seed files that can be applied after the required database connections exist.
-- Keep database passwords out of the SQL seed files.
+## 目标
 
-## Non-Goals
+- 将现有所有 `archiver/**/*.sh` 脚本表达为系统托管的结构化归档任务。
+- 不建设通用 bash 导入器，也不把 shell 脚本执行作为长期集成方式。
+- 支持 `pt-archiver --purge` 这类没有 `--dest` 的纯删除任务。
+- 支持步骤级源表索引名，例如 `i=idx_c_userid`。
+- 支持单值变量查询，例如 `maxid=$(mysql ... "select max(id) ...")`。
+- 支持订单类复杂脚本，将 while 分批和临时表逻辑拆解为系统内的批次归档能力。
+- 产出可 review、可重复执行策略清晰的 SQL seed 文件。
+- SQL seed 不扩散旧脚本里的数据库明文密码。
 
-- No runtime bash parser or import UI.
-- No generic shell interpreter inside the backend.
-- No automatic encryption or insertion of database connection passwords from old scripts.
-- No behavior change to field-risk scan tasks outside the archive module.
+## 非目标
 
-## Archive Modes
+- 不做运行时 bash 解析器或导入页面。
+- 不在后端实现通用 shell 解释器。
+- 不从旧脚本中自动提取、加密并写入数据库连接密码。
+- 不改动归档模块之外的字段风险扫描任务逻辑。
 
-Archive steps will support three modes:
+## 归档模式
 
-- `ARCHIVE`: run `pt-archiver` with both `--source` and `--dest`.
-- `PURGE`: run `pt-archiver` with `--source` and `--purge`, without `--dest`.
-- `BATCH_ARCHIVE`: run a configured batch query, load the batch keys into a configured helper table, then run a sequence of `ARCHIVE` or `PURGE` steps that reference that helper table.
+归档能力分为三类：
 
-`ARCHIVE` and `PURGE` are step modes. `BATCH_ARCHIVE` is a task execution mode because one batch is shared by many steps.
+- `ARCHIVE`：普通归档。执行 `pt-archiver` 时同时带 `--source` 和 `--dest`。
+- `PURGE`：纯删除。执行 `pt-archiver` 时带 `--source` 和 `--purge`，不带 `--dest`。
+- `BATCH_ARCHIVE`：批次归档。先执行批次查询，将本批 key 写入指定的辅助表，然后多个步骤共用这批 key 执行 `ARCHIVE` 或 `PURGE`。
 
-## Data Model Changes
+`ARCHIVE` 和 `PURGE` 是步骤模式；`BATCH_ARCHIVE` 是任务执行模式，因为同一个批次会被多个步骤共享。
+
+## 数据模型变更
 
 ### `archive_task`
 
-Add:
+新增字段：
 
 - `task_mode varchar(30) not null default 'NORMAL'`
 
-Values:
+取值：
 
-- `NORMAL`: existing archive task behavior.
-- `BATCH_ARCHIVE`: repeat a batch query until no rows remain.
+- `NORMAL`：现有归档任务行为。
+- `BATCH_ARCHIVE`：重复执行批次查询，直到没有新数据。
 
 ### `archive_task_step`
 
-Add:
+新增字段：
 
 - `step_mode varchar(30) not null default 'ARCHIVE'`
 - `index_name varchar(100) null`
 
-Rules:
+规则：
 
-- `ARCHIVE` requires `dest_database` and `dest_table`.
-- `PURGE` does not require `dest_database` or `dest_table`.
-- `index_name` is rendered into the source DSN as `i=<index_name>`.
-- Existing fields such as `where_template`, `charset`, `limit_size`, `progress_size`, `bulk_insert`, `commit_each`, and `extra_options` stay in use.
+- `ARCHIVE` 要求配置 `dest_database` 和 `dest_table`。
+- `PURGE` 不要求配置 `dest_database` 和 `dest_table`。
+- `index_name` 渲染进 source DSN，格式为 `i=<index_name>`。
+- 继续复用现有字段：`where_template`、`charset`、`limit_size`、`progress_size`、`bulk_insert`、`commit_each`、`extra_options`。
 
 ### `archive_task_variable`
 
-Add:
+新增字段：
 
 - `connection_id bigint null`
 
-Rules:
+规则：
 
-- If `connection_id` is set, query the variable from that connection.
-- If it is empty, keep current behavior and query from the task source connection.
+- 如果配置了 `connection_id`，变量查询使用该连接。
+- 如果为空，保持现有行为，使用任务源连接查询变量。
 
 ### `archive_batch_config`
 
-Create:
+新增表：
 
 - `id bigint primary key auto_increment`
 - `task_id bigint not null`
-- `connection_id bigint not null`
+- `query_connection_id bigint not null`
+- `target_connection_id bigint not null`
 - `batch_query text not null`
 - `target_database varchar(100) not null`
 - `target_table varchar(100) not null`
@@ -88,159 +91,163 @@ Create:
 - `max_rounds int null`
 - `enabled bit not null default b'1'`
 
-Purpose:
+用途：
 
-- `batch_query` returns one batch of keys, for example `order_id,pay_id`.
-- The executor writes the returned rows into a temporary/helper table such as `tmp_arch_order_id`.
-- Steps can reference the helper table in `where_template`.
+- `query_connection_id` 只用于执行 `batch_query`，可以指向 TiDB 或其他只读查询库。
+- `target_connection_id` 只用于执行 `truncate_sql` 和 `load_sql`，通常指向承载辅助表的 MySQL 源库。
+- `batch_query` 查询一批 key，例如 `order_id,pay_id`。
+- 执行器把查询结果写入辅助表，例如 `tmp_arch_order_id`。
+- 后续步骤可以在 `where_template` 里引用这个辅助表。
 
-The first implementation will support the current script pattern where the helper table is a normal table in the source database and data is loaded before each batch round.
+第一版优先支持当前脚本里的模式：辅助表是 MySQL 源库里的普通表，每一轮批次执行前先清空，再写入本批 key。批次查询可以单独配置到 TiDB，但辅助表写入必须落到 MySQL 连接。
 
-## Command Generation
+## 命令生成规则
 
-`ArchiveCommandBuilder` will be extended as follows:
+`ArchiveCommandBuilder` 需要扩展：
 
-- For `ARCHIVE`, keep the current source and destination DSN behavior.
-- For `PURGE`, omit `--dest`, append `--purge`, and do not append `--no-delete`.
-- For `index_name`, append `,i=<index_name>` to the source DSN.
-- For `bulk_insert`, keep existing `--bulk-insert` and DSN `L=1` behavior.
-- Continue redacting passwords in logged command lines.
+- `ARCHIVE`：保持现有 source/dest DSN 行为。
+- `PURGE`：省略 `--dest`，追加 `--purge`，不追加 `--no-delete`。
+- `index_name`：追加到 source DSN，形如 `,i=<index_name>`。
+- `bulk_insert`：保留现有 `--bulk-insert` 和 DSN `L=1` 行为。
+- 日志里的命令继续脱敏密码。
 
-## Execution Flow
+## 执行流程
 
-### Normal Tasks
+### 普通任务
 
-1. Load enabled variables.
-2. Render variables into each enabled step's `where_template`.
-3. Build and run one `pt-archiver` command per step.
-4. Stop on the first non-zero exit code.
-5. Persist logs, processed step count, skipped step count, and exit code.
+1. 加载启用的变量。
+2. 将变量渲染到每个启用步骤的 `where_template`。
+3. 每个步骤生成并执行一条 `pt-archiver` 命令。
+4. 遇到第一个非 0 退出码即停止任务。
+5. 持久化日志、已处理步骤数、跳过步骤数和退出码。
 
-### Batch Archive Tasks
+### 批次归档任务
 
-1. Run enabled single-value variables once before batch execution.
-2. Start batch round `1`.
-3. Execute `batch_query`.
-4. If it returns no rows, finish the task.
-5. Truncate the configured helper table.
-6. Load batch rows into the helper table.
-7. Run every enabled step in sort order.
-8. If a step fails, stop the task and keep logs for the failed round.
-9. Continue with the next round until no rows remain or `max_rounds` is reached.
+1. 批次开始前先执行启用的单值变量查询。
+2. 开始第 `1` 轮批次。
+3. 执行 `batch_query`。
+4. 如果没有返回行，任务结束。
+5. 清空配置的辅助表。
+6. 将本批结果写入辅助表。
+7. 按 `sort_order` 顺序执行所有启用步骤。
+8. 如果任一步骤失败，停止任务并保留失败批次日志。
+9. 继续下一轮，直到没有数据或达到 `max_rounds`。
 
-Batch logs must include the round number, batch row count, helper table name, and each step name.
+批次日志必须包含：批次轮次、本批行数、辅助表名、每个步骤名。
 
-## SQL Seed Strategy
+## SQL Seed 策略
 
-Historical scripts will be converted into SQL files under:
+历史脚本转换后的 SQL 放在：
 
 `mysql/archive-seed/`
 
-Recommended layout:
+建议目录结构：
 
-- `00_connections_required.sql`: documents required connection names and lookup variables.
+- `00_connections_required.sql`：列出需要预先创建的连接名称和变量。
 - `haoshiqi_arch_cart.sql`
 - `haoshiqi_table_arch.sql`
 - `bzbc_table_arch.sql`
-- one SQL file per source bash script or coherent script group.
+- 每个源 bash 脚本或一组强相关脚本对应一个 SQL 文件。
 
-Seed SQL must:
+Seed SQL 要求：
 
-- Use connection names to look up IDs from `db_connection`.
-- Insert tasks with deterministic names such as `haoshiqi/arch_cart`.
-- Insert steps with deterministic names such as `cart purge by user_id`.
-- Store the original script path in `remark`.
-- Avoid storing database passwords.
-- Use idempotent patterns where practical, such as deleting and reinserting by task name or guarding with existing-name checks.
+- 通过连接名称从 `db_connection` 查询 ID。
+- 使用确定性的任务名，例如 `haoshiqi/arch_cart`。
+- 使用确定性的步骤名，例如 `cart purge by user_id`。
+- 在 `remark` 中记录原始脚本路径。
+- 不写入数据库密码。
+- 尽量采用幂等策略，例如按任务名删除后重建，或通过任务名判断是否已存在。
 
-## Script Mapping Rules
+## 脚本映射规则
 
-### Fixed `pt-archiver` Commands
+### 固定 `pt-archiver` 命令
 
-Each command becomes one step.
+每条命令转换成一个步骤。
 
-Example from `arch_cart.sh`:
+以 `arch_cart.sh` 为例：
 
-- `cart` with `--purge` becomes `PURGE`.
-- `cart_sku` with `--purge` becomes `PURGE`.
-- `cart_sku` with `--dest legacy_hsq_online` becomes `ARCHIVE`.
+- `cart` + `--purge` 转为 `PURGE` 步骤。
+- `cart_sku` + `--purge` 转为 `PURGE` 步骤。
+- `cart_sku` + `--dest legacy_hsq_online` 转为 `ARCHIVE` 步骤。
 
-### Table Loop Scripts
+### 表循环脚本
 
-One script becomes one task. Each table in the loop becomes one step. The `case` branch supplies the step's `where_template`, `index_name`, and extra options.
+一个脚本转换成一个任务。循环里的每张表转换成一个步骤。`case` 分支提供该步骤的 `where_template`、`index_name` 和额外参数。
 
-### Single-Value Variable Scripts
+### 单值变量脚本
 
-Shell variables from `mysql -N -e "select ..."` become `archive_task_variable` rows. The step where clause uses `${variable_name}`.
+shell 中通过 `mysql -N -e "select ..."` 得到的变量，转换成 `archive_task_variable`。
 
-Example:
+示例：
 
 - `maxid=$(mysql ... "select max(id) ...")`
-- `where "id < ${maxid}"`
+- 步骤条件写成 `id < ${maxid}`
 
-### Complex Batch Scripts
+### 复杂批次脚本
 
-Scripts such as `pt_arch_hsq_order.sh` become `BATCH_ARCHIVE` tasks.
+类似 `pt_arch_hsq_order.sh` 的脚本转换成 `BATCH_ARCHIVE` 任务。
 
-The batch query captures the original ID selection:
+批次查询保留原始 ID 选择语义：
 
 - `select id,pay_id from trade_order where created_at < unix_timestamp('2023-01-01 00:00:00') order by id limit 2000`
 
-The helper table is:
+辅助表配置为：
 
-- source database: `hsq_online`
-- helper table: `tmp_arch_order_id`
+- 源库：`hsq_online`
+- 辅助表：`tmp_arch_order_id`
+- 查询连接：可选 TiDB 连接。
+- 写入连接：MySQL 源库连接。
 
-Each `order_archiver` call becomes one step that references `tmp_arch_order_id`.
+每个 `order_archiver` 调用转换成一个步骤，并在 `where_template` 中引用 `tmp_arch_order_id`。
 
-## Frontend Changes
+## 前端变更
 
-The archive task form will expose:
+归档任务表单需要增加：
 
-- Task mode: normal or batch archive.
-- Step mode: archive or purge.
-- Source index name.
-- Optional variable connection.
-- Batch config section when task mode is `BATCH_ARCHIVE`.
+- 任务模式：普通任务 / 批次归档任务。
+- 步骤模式：归档 / 纯删除。
+- 源表索引名。
+- 变量查询连接。
+- 当任务模式为 `BATCH_ARCHIVE` 时展示批次配置区域，包括批次查询连接和辅助表写入连接。
 
-The form must hide destination database/table inputs for `PURGE` steps.
+当步骤模式为 `PURGE` 时，前端隐藏目标库和目标表输入项。
 
-## Testing Strategy
+## 测试策略
 
-Backend tests:
+后端测试：
 
-- `ArchiveCommandBuilder` builds `PURGE` commands without `--dest`.
-- `ArchiveCommandBuilder` includes source DSN `i=<index_name>`.
-- `ArchiveCommandBuilder` preserves existing `ARCHIVE` behavior.
-- `ArchiveTaskService` stores and returns step mode, index name, variable connection, and batch config.
-- `ArchiveTaskExecutor` runs batch rounds until the batch query returns no rows.
+- `ArchiveCommandBuilder` 可以生成不带 `--dest` 的 `PURGE` 命令。
+- `ArchiveCommandBuilder` 可以在 source DSN 中包含 `i=<index_name>`。
+- `ArchiveCommandBuilder` 保持现有 `ARCHIVE` 行为不变。
+- `ArchiveTaskService` 可以保存并返回步骤模式、索引名、变量连接和批次配置。
+- `ArchiveTaskExecutor` 可以按批次执行，直到批次查询返回空结果。
 
-Frontend tests or build checks:
+前端测试或构建检查：
 
-- Archive task form can submit `PURGE` steps.
-- Archive task form can submit source index names.
-- Archive task form can show and submit batch config.
+- 归档任务表单可以提交 `PURGE` 步骤。
+- 归档任务表单可以提交源表索引名。
+- 归档任务表单可以展示并提交批次配置。
 
-Seed SQL checks:
+Seed SQL 检查：
 
-- SQL files reference existing connection names instead of passwords.
-- Each historical script has a mapped task or documented structured batch task.
-- `arch_cart.sh` is covered by one task with three steps.
+- SQL 文件通过连接名称引用已有连接，不包含密码。
+- 每个历史脚本都映射到结构化任务。
+- `arch_cart.sh` 被一个任务的三个步骤完整覆盖。
 
-## Rollout Plan
+## 推进计划
 
-1. Extend database schema and Java entities.
-2. Extend command generation for `PURGE` and source indexes.
-3. Extend normal executor behavior.
-4. Add batch archive model and executor flow.
-5. Extend API DTOs and frontend form.
-6. Add SQL seed files for a small representative set, starting with `arch_cart.sh`.
-7. Convert remaining scripts into seed SQL in batches by directory.
-8. Run backend tests and frontend build.
+1. 扩展数据库 schema 和 Java 实体。
+2. 扩展命令生成，支持 `PURGE` 和源表索引。
+3. 扩展普通任务执行器。
+4. 增加批次归档模型和执行流程。
+5. 扩展 API DTO 和前端表单。
+6. 先为代表性脚本补 SQL seed，从 `arch_cart.sh` 开始。
+7. 按目录分批把剩余脚本转换成 SQL seed。
+8. 运行后端测试和前端构建。
 
-## Open Decisions Resolved
+## 已确认决策
 
-- All scripts will be represented structurally.
-- No runtime bash importer will be built.
-- No complex script will remain as a hosted bash workflow.
-- SQL seed files are the migration artifact.
+- 所有脚本都用结构化任务表达。
+- 不建设运行时 bash 导入器。
+- 不保留复杂脚本托管执行兜底。
+- SQL seed 是历史脚本迁移产物。

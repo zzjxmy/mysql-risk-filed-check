@@ -6,6 +6,12 @@
         <el-form-item label="任务名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入任务名称" />
         </el-form-item>
+        <el-form-item label="任务模式">
+          <el-radio-group v-model="form.taskMode">
+            <el-radio-button value="NORMAL">普通任务</el-radio-button>
+            <el-radio-button value="BATCH_ARCHIVE">批次归档</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
         <el-form-item label="源连接" prop="sourceConnectionId">
           <el-select v-model="form.sourceConnectionId" style="width: 100%" placeholder="请选择源库连接">
             <el-option v-for="conn in connections" :key="conn.id" :label="conn.name" :value="conn.id" />
@@ -37,6 +43,11 @@
           <el-form-item label="变量名">
             <el-input v-model="variable.name" placeholder="如 maxid" />
           </el-form-item>
+          <el-form-item label="查询连接">
+            <el-select v-model="variable.connectionId" clearable style="width: 100%" placeholder="默认使用任务源连接">
+              <el-option v-for="conn in connections" :key="conn.id" :label="conn.name" :value="conn.id" />
+            </el-select>
+          </el-form-item>
           <el-form-item label="SELECT SQL">
             <el-input v-model="variable.querySql" type="textarea" :rows="3" placeholder="select max(id) from db.table where ..." />
           </el-form-item>
@@ -45,6 +56,62 @@
           <el-icon><Plus /></el-icon>
           添加变量
         </el-button>
+
+        <template v-if="form.taskMode === 'BATCH_ARCHIVE'">
+          <el-divider content-position="left">批次配置</el-divider>
+          <div class="block-row">
+            <el-row :gutter="16">
+              <el-col :span="12">
+                <el-form-item label="查询连接">
+                  <el-select v-model="form.batchConfig.queryConnectionId" style="width: 100%" placeholder="请选择 TiDB/查询连接">
+                    <el-option v-for="conn in connections" :key="conn.id" :label="conn.name" :value="conn.id" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="写入连接">
+                  <el-select v-model="form.batchConfig.targetConnectionId" style="width: 100%" placeholder="请选择 MySQL/辅助表连接">
+                    <el-option v-for="conn in connections" :key="conn.id" :label="conn.name" :value="conn.id" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="启用批次">
+                  <el-switch v-model="form.batchConfig.enabled" active-text="启用" inactive-text="禁用" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="辅助库">
+                  <el-input v-model="form.batchConfig.targetDatabase" placeholder="hsq_online" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="辅助表">
+                  <el-input v-model="form.batchConfig.targetTable" placeholder="tmp_arch_order_id" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="批次大小">
+                  <el-input-number v-model="form.batchConfig.batchSize" :min="1" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="最大轮次">
+                  <el-input-number v-model="form.batchConfig.maxRounds" :min="1" placeholder="不限制" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-form-item label="批次查询">
+              <el-input v-model="form.batchConfig.batchQuery" type="textarea" :rows="3" placeholder="select id,pay_id from trade_order order by id limit 2000" />
+            </el-form-item>
+            <el-form-item label="清空 SQL">
+              <el-input v-model="form.batchConfig.truncateSql" type="textarea" :rows="2" placeholder="truncate table hsq_online.tmp_arch_order_id" />
+            </el-form-item>
+            <el-form-item label="写入 SQL">
+              <el-input v-model="form.batchConfig.loadSql" type="textarea" :rows="2" placeholder="insert into hsq_online.tmp_arch_order_id (order_id,pay_id) values (?,?)" />
+            </el-form-item>
+          </div>
+        </template>
 
         <el-divider content-position="left">归档步骤</el-divider>
         <div v-for="(step, index) in form.steps" :key="index" class="block-row">
@@ -56,6 +123,14 @@
             <el-col :span="12">
               <el-form-item label="步骤名称">
                 <el-input v-model="step.name" placeholder="如 归档sys_kpi_log" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="步骤模式">
+                <el-radio-group v-model="step.stepMode">
+                  <el-radio-button value="ARCHIVE">归档</el-radio-button>
+                  <el-radio-button value="PURGE">纯删除</el-radio-button>
+                </el-radio-group>
               </el-form-item>
             </el-col>
             <el-col :span="12">
@@ -87,11 +162,16 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
+              <el-form-item label="源表索引">
+                <el-input v-model="step.indexName" placeholder="idx_c_userid" />
+              </el-form-item>
+            </el-col>
+            <el-col v-if="step.stepMode !== 'PURGE'" :span="12">
               <el-form-item label="目标库">
                 <el-input v-model="step.destDatabase" placeholder="legacy_hsq_online" />
               </el-form-item>
             </el-col>
-            <el-col :span="12">
+            <el-col v-if="step.stepMode !== 'PURGE'" :span="12">
               <el-form-item label="目标表">
                 <el-input v-model="step.destTable" placeholder="sys_kpi_log" />
               </el-form-item>
@@ -143,7 +223,7 @@ import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { alertApi, type AlertConfig } from '../../api/alert'
 import { getConnections, type Connection } from '../../api/connection'
-import { createArchiveTask, getArchiveTask, updateArchiveTask, type ArchiveStep, type ArchiveTask } from '../../api/archive'
+import { createArchiveTask, getArchiveTask, updateArchiveTask, type ArchiveBatchConfig, type ArchiveStep, type ArchiveTask } from '../../api/archive'
 
 const route = useRoute()
 const router = useRouter()
@@ -156,8 +236,10 @@ const isEdit = computed(() => !!route.params.id)
 
 const newStep = (): ArchiveStep => ({
   name: '',
+  stepMode: 'ARCHIVE',
   sourceDatabase: '',
   sourceTable: '',
+  indexName: '',
   destDatabase: '',
   destTable: '',
   whereTemplate: '',
@@ -171,15 +253,32 @@ const newStep = (): ArchiveStep => ({
   enabled: true
 })
 
-const form = reactive<ArchiveTask>({
+const newBatchConfig = (): ArchiveBatchConfig => ({
+  queryConnectionId: undefined,
+  targetConnectionId: undefined,
+  batchQuery: '',
+  targetDatabase: '',
+  targetTable: '',
+  truncateSql: '',
+  loadSql: '',
+  batchSize: 2000,
+  maxRounds: undefined,
+  enabled: true
+})
+
+type ArchiveTaskFormModel = ArchiveTask & { batchConfig: ArchiveBatchConfig }
+
+const form = reactive<ArchiveTaskFormModel>({
   name: '',
+  taskMode: 'NORMAL',
   sourceConnectionId: 0,
   destConnectionId: 0,
   cronExpression: '',
   status: 'ENABLED',
   alertConfigIds: [],
   variables: [],
-  steps: [newStep()]
+  steps: [newStep()],
+  batchConfig: newBatchConfig()
 })
 
 const rules: FormRules = {
@@ -188,7 +287,7 @@ const rules: FormRules = {
   destConnectionId: [{ required: true, message: '请选择目标连接', trigger: 'change' }]
 }
 
-const addVariable = () => form.variables.push({ name: '', querySql: '', enabled: true })
+const addVariable = () => form.variables.push({ name: '', querySql: '', connectionId: undefined, enabled: true })
 const removeVariable = (index: number) => form.variables.splice(index, 1)
 const addStep = () => form.steps.push(newStep())
 const removeStep = (index: number) => form.steps.splice(index, 1)
@@ -208,9 +307,51 @@ const fetchTask = async () => {
   if (res.code === 200) {
     Object.assign(form, res.data)
     enabled.value = res.data.status === 'ENABLED'
+    form.taskMode = form.taskMode || 'NORMAL'
     if (!form.variables) form.variables = []
     if (!form.steps || form.steps.length === 0) form.steps = [newStep()]
+    form.steps = form.steps.map(step => ({
+      ...newStep(),
+      ...step,
+      stepMode: step.stepMode || 'ARCHIVE'
+    }))
+    if (!form.batchConfig) form.batchConfig = newBatchConfig()
+    form.batchConfig = normalizeBatchConfig(form.batchConfig)
   }
+}
+
+const normalizeBatchConfig = (batchConfig: ArchiveBatchConfig): ArchiveBatchConfig => ({
+  ...newBatchConfig(),
+  ...batchConfig,
+  queryConnectionId: batchConfig.queryConnectionId ?? batchConfig.connectionId,
+  targetConnectionId: batchConfig.targetConnectionId ?? batchConfig.connectionId
+})
+
+const buildSubmitData = (): ArchiveTask => {
+  const data: ArchiveTask = {
+    ...form,
+    status: enabled.value ? 'ENABLED' : 'DISABLED',
+    steps: form.steps.map(step => {
+      const normalized = {
+        ...step,
+        stepMode: step.stepMode || 'ARCHIVE'
+      }
+      if (normalized.stepMode === 'PURGE') {
+        normalized.destDatabase = undefined
+        normalized.destTable = undefined
+        normalized.deleteSource = true
+      }
+      return normalized
+    })
+  }
+  if (data.taskMode !== 'BATCH_ARCHIVE') {
+    data.batchConfig = null
+  } else if (!data.batchConfig) {
+    data.batchConfig = newBatchConfig()
+  } else {
+    data.batchConfig = normalizeBatchConfig(data.batchConfig)
+  }
+  return data
 }
 
 const handleSubmit = async () => {
@@ -219,7 +360,7 @@ const handleSubmit = async () => {
     if (!valid) return
     submitting.value = true
     try {
-      const data = { ...form, status: enabled.value ? 'ENABLED' : 'DISABLED' }
+      const data = buildSubmitData()
       if (isEdit.value) {
         await updateArchiveTask(Number(route.params.id), data)
       } else {

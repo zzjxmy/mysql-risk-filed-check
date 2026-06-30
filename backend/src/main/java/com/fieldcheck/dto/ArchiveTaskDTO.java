@@ -16,6 +16,8 @@ public class ArchiveTaskDTO {
     @NotBlank(message = "任务名称不能为空")
     private String name;
 
+    private String taskMode;
+
     @NotNull(message = "源数据库连接不能为空")
     private Long sourceConnectionId;
 
@@ -32,4 +34,5 @@ public class ArchiveTaskDTO {
     private Set<Long> alertConfigIds;
     private List<ArchiveTaskVariableDTO> variables = new ArrayList<>();
     private List<ArchiveTaskStepDTO> steps = new ArrayList<>();
+    private ArchiveBatchConfigDTO batchConfig;
 }

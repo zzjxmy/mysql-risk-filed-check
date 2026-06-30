@@ -24,16 +24,23 @@ public class ArchiveTaskStep extends BaseEntity {
     @Column(nullable = false, length = 200)
     private String name;
 
+    @Column(name = "step_mode", nullable = false, length = 30)
+    @Builder.Default
+    private String stepMode = "ARCHIVE";
+
     @Column(name = "source_database", nullable = false, length = 100)
     private String sourceDatabase;
 
     @Column(name = "source_table", nullable = false, length = 100)
     private String sourceTable;
 
-    @Column(name = "dest_database", nullable = false, length = 100)
+    @Column(name = "index_name", length = 100)
+    private String indexName;
+
+    @Column(name = "dest_database", length = 100)
     private String destDatabase;
 
-    @Column(name = "dest_table", nullable = false, length = 100)
+    @Column(name = "dest_table", length = 100)
     private String destTable;
 
     @Column(name = "where_template", nullable = false, columnDefinition = "TEXT")

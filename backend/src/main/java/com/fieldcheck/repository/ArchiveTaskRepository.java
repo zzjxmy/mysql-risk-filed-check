@@ -25,8 +25,12 @@ public interface ArchiveTaskRepository extends JpaRepository<ArchiveTask, Long> 
     List<ArchiveTask> findByStatusAndCronExpressionIsNotNull(TaskStatus status);
 
     @Query("SELECT DISTINCT t FROM ArchiveTask t " +
-            "LEFT JOIN FETCH t.variables " +
+            "LEFT JOIN FETCH t.variables v " +
+            "LEFT JOIN FETCH v.connection " +
             "LEFT JOIN FETCH t.steps " +
+            "LEFT JOIN FETCH t.batchConfig bc " +
+            "LEFT JOIN FETCH bc.queryConnection " +
+            "LEFT JOIN FETCH bc.targetConnection " +
             "JOIN FETCH t.sourceConnection " +
             "JOIN FETCH t.destConnection " +
             "WHERE t.id = :id")

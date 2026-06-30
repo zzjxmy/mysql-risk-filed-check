@@ -16,11 +16,15 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "archive_task")
-@EqualsAndHashCode(callSuper = true, exclude = {"sourceConnection", "destConnection", "createdBy", "variables", "steps"})
+@EqualsAndHashCode(callSuper = true, exclude = {"sourceConnection", "destConnection", "createdBy", "variables", "steps", "batchConfig"})
 public class ArchiveTask extends BaseEntity {
 
     @Column(nullable = false, length = 200)
     private String name;
+
+    @Column(name = "task_mode", nullable = false, length = 30)
+    @Builder.Default
+    private String taskMode = "NORMAL";
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "source_connection_id", nullable = false)
@@ -54,4 +58,7 @@ public class ArchiveTask extends BaseEntity {
     @OrderBy("sortOrder ASC")
     @Builder.Default
     private Set<ArchiveTaskStep> steps = new LinkedHashSet<>();
+
+    @OneToOne(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
+    private ArchiveBatchConfig batchConfig;
 }

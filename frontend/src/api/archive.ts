@@ -4,6 +4,8 @@ export interface ArchiveVariable {
   id?: number
   name: string
   querySql: string
+  connectionId?: number
+  connectionName?: string
   sortOrder?: number
   enabled?: boolean
 }
@@ -11,10 +13,12 @@ export interface ArchiveVariable {
 export interface ArchiveStep {
   id?: number
   name: string
+  stepMode?: string
   sourceDatabase: string
   sourceTable: string
-  destDatabase: string
-  destTable: string
+  indexName?: string
+  destDatabase?: string
+  destTable?: string
   whereTemplate: string
   deleteSource?: boolean
   charset?: string
@@ -27,9 +31,28 @@ export interface ArchiveStep {
   enabled?: boolean
 }
 
+export interface ArchiveBatchConfig {
+  id?: number
+  queryConnectionId?: number
+  queryConnectionName?: string
+  targetConnectionId?: number
+  targetConnectionName?: string
+  connectionId?: number
+  connectionName?: string
+  batchQuery: string
+  targetDatabase: string
+  targetTable: string
+  truncateSql: string
+  loadSql: string
+  batchSize?: number
+  maxRounds?: number
+  enabled?: boolean
+}
+
 export interface ArchiveTask {
   id?: number
   name: string
+  taskMode?: string
   sourceConnectionId: number
   sourceConnectionName?: string
   destConnectionId: number
@@ -40,6 +63,7 @@ export interface ArchiveTask {
   alertConfigIds?: number[]
   variables: ArchiveVariable[]
   steps: ArchiveStep[]
+  batchConfig?: ArchiveBatchConfig | null
 }
 
 export interface ArchiveExecution {

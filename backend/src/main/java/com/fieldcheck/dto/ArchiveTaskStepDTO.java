@@ -6,8 +6,10 @@ import lombok.Data;
 public class ArchiveTaskStepDTO {
     private Long id;
     private String name;
+    private String stepMode;
     private String sourceDatabase;
     private String sourceTable;
+    private String indexName;
     private String destDatabase;
     private String destTable;
     private String whereTemplate;

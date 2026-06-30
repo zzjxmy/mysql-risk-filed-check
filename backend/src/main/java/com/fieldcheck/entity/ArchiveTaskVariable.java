@@ -27,6 +27,10 @@ public class ArchiveTaskVariable extends BaseEntity {
     @Column(name = "query_sql", nullable = false, columnDefinition = "TEXT")
     private String querySql;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "connection_id")
+    private DbConnection connection;
+
     @Column(name = "sort_order")
     @Builder.Default
     private Integer sortOrder = 0;

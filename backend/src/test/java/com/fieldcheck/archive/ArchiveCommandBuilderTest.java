@@ -145,6 +145,66 @@ class ArchiveCommandBuilderTest {
     }
 
     @Test
+    void buildsPurgeCommandWithoutDestination() {
+        ArchiveCommandSpec spec = ArchiveCommandSpec.builder()
+                .ptArchiverPath("/bin/pt-archiver")
+                .stepMode("PURGE")
+                .sourceHost("source-db")
+                .sourcePort(3306)
+                .sourceUsername("archiver")
+                .sourcePassword("secret")
+                .sourceDatabase("hsq_online")
+                .sourceTable("cart")
+                .whereClause("user_id < 100")
+                .charset("UTF8")
+                .limitSize(5000)
+                .progressSize(5000)
+                .bulkInsert(false)
+                .commitEach(true)
+                .extraOptions(Collections.emptyList())
+                .build();
+
+        List<String> command = ArchiveCommandBuilder.build(spec);
+
+        assertTrue(command.contains("--purge"));
+        assertFalse(command.contains("--dest"));
+        assertFalse(command.contains("--no-delete"));
+    }
+
+    @Test
+    void includesSourceIndexNameInSourceDsn() {
+        ArchiveCommandSpec spec = ArchiveCommandSpec.builder()
+                .ptArchiverPath("/bin/pt-archiver")
+                .stepMode("ARCHIVE")
+                .sourceHost("source-db")
+                .sourcePort(3306)
+                .sourceUsername("archiver")
+                .sourcePassword("secret")
+                .sourceDatabase("hsq_online")
+                .sourceTable("cart")
+                .sourceIndexName("idx_c_userid")
+                .destHost("archive-db")
+                .destPort(3306)
+                .destUsername("archiver")
+                .destPassword("archive-secret")
+                .destDatabase("legacy_hsq_online")
+                .destTable("cart")
+                .whereClause("user_id < 100")
+                .charset("UTF8")
+                .limitSize(5000)
+                .progressSize(5000)
+                .bulkInsert(false)
+                .commitEach(true)
+                .extraOptions(Collections.emptyList())
+                .build();
+
+        List<String> command = ArchiveCommandBuilder.build(spec);
+
+        assertTrue(command.get(command.indexOf("--source") + 1).contains(",i=idx_c_userid"));
+        assertFalse(command.get(command.indexOf("--dest") + 1).contains(",i=idx_c_userid"));
+    }
+
+    @Test
     void redactsPasswordsInLogCommand() {
         ArchiveCommandSpec spec = ArchiveCommandSpec.builder()
                 .ptArchiverPath("/bin/pt-archiver")

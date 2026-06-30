@@ -14,12 +14,14 @@ import java.util.List;
 @AllArgsConstructor
 public class ArchiveCommandSpec {
     private String ptArchiverPath;
+    private String stepMode;
     private String sourceHost;
     private Integer sourcePort;
     private String sourceUsername;
     private String sourcePassword;
     private String sourceDatabase;
     private String sourceTable;
+    private String sourceIndexName;
     private String destHost;
     private Integer destPort;
     private String destUsername;

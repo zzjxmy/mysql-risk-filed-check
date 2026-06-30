@@ -13,6 +13,7 @@ public final class ArchiveCommandBuilder {
 
     public static List<String> build(ArchiveCommandSpec spec) {
         ArchiveSqlValidator.validateWhereTemplate(spec.getWhereClause());
+        boolean purgeMode = "PURGE".equalsIgnoreCase(valueOrDefault(spec.getStepMode(), "ARCHIVE"));
 
         List<String> command = new ArrayList<>();
         command.add(valueOrDefault(spec.getPtArchiverPath(), "/bin/pt-archiver"));
@@ -24,16 +25,22 @@ public final class ArchiveCommandBuilder {
                 spec.getSourcePassword(),
                 spec.getSourceDatabase(),
                 spec.getSourceTable(),
+                spec.getSourceIndexName(),
                 Boolean.TRUE.equals(spec.getBulkInsert())));
-        command.add("--dest");
-        command.add(connectionSpec(
-                spec.getDestHost(),
-                spec.getDestPort(),
-                spec.getDestUsername(),
-                spec.getDestPassword(),
-                spec.getDestDatabase(),
-                spec.getDestTable(),
-                Boolean.TRUE.equals(spec.getBulkInsert())));
+        if (purgeMode) {
+            command.add("--purge");
+        } else {
+            command.add("--dest");
+            command.add(connectionSpec(
+                    spec.getDestHost(),
+                    spec.getDestPort(),
+                    spec.getDestUsername(),
+                    spec.getDestPassword(),
+                    spec.getDestDatabase(),
+                    spec.getDestTable(),
+                    null,
+                    Boolean.TRUE.equals(spec.getBulkInsert())));
+        }
         command.add("--where");
         command.add(spec.getWhereClause());
         command.add("--charset");
@@ -50,7 +57,7 @@ public final class ArchiveCommandBuilder {
         if (Boolean.TRUE.equals(spec.getCommitEach())) {
             command.add("--commit-each");
         }
-        if (!Boolean.TRUE.equals(spec.getDeleteSource())) {
+        if (!purgeMode && !Boolean.TRUE.equals(spec.getDeleteSource())) {
             command.add("--no-delete");
         }
         command.add("--statistics");
@@ -68,13 +75,16 @@ public final class ArchiveCommandBuilder {
         return String.join(" ", redacted);
     }
 
-    private static String connectionSpec(String host, Integer port, String username, String password, String database, String table, boolean localInfile) {
+    private static String connectionSpec(String host, Integer port, String username, String password, String database, String table, String indexName, boolean localInfile) {
         String spec = "h=" + host +
                 ",P=" + valueOrDefault(port, 3306) +
                 ",u=" + username +
                 ",p=" + password +
                 ",D=" + database +
                 ",t=" + table;
+        if (indexName != null && !indexName.trim().isEmpty()) {
+            spec += ",i=" + indexName.trim();
+        }
         return localInfile ? spec + ",L=1" : spec;
     }
 

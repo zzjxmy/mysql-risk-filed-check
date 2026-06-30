@@ -33,26 +33,23 @@ public class AuthService {
 
     @PostConstruct
     public void init() {
-        // Create or reset default admin user (always local)
+        // Create the default admin only on a fresh database.
         SysUser admin = userRepository.findByUsername("admin").orElse(null);
-        if (admin == null) {
-            admin = SysUser.builder()
-                    .username("admin")
-                    .password(passwordEncoder.encode("admin123"))
-                    .nickname("Administrator")
-                    .role(UserRole.ADMIN)
-                    .enabled(true)
-                    .authType(SysUser.AuthType.LOCAL)
-                    .build();
-        } else {
-            // Reset password to ensure it's correct (only for local admin)
-            if (admin.getAuthType() == SysUser.AuthType.LOCAL || admin.getAuthType() == null) {
-                admin.setPassword(passwordEncoder.encode("admin123"));
-                admin.setEnabled(true);
-            }
+        if (admin != null) {
+            log.info("Default admin user already exists: admin");
+            return;
         }
+
+        admin = SysUser.builder()
+                .username("admin")
+                .password(passwordEncoder.encode("admin123"))
+                .nickname("Administrator")
+                .role(UserRole.ADMIN)
+                .enabled(true)
+                .authType(SysUser.AuthType.LOCAL)
+                .build();
         userRepository.save(admin);
-        log.info("Default admin user ready: admin/admin123");
+        log.info("Default admin user created: admin/admin123");
     }
 
     public LoginResponse login(LoginRequest request) {
