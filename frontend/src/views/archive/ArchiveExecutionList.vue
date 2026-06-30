@@ -2,6 +2,48 @@
   <div class="archive-execution-list">
     <el-card>
       <template #header>归档执行记录</template>
+      <el-form :inline="true" class="search-form">
+        <el-form-item label="任务名称">
+          <el-input v-model="searchForm.taskName" placeholder="请输入任务名称" clearable />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="searchForm.status" placeholder="全部" clearable style="width: 120px">
+            <el-option label="全部" value="" />
+            <el-option label="待执行" value="PENDING" />
+            <el-option label="执行中" value="RUNNING" />
+            <el-option label="成功" value="SUCCESS" />
+            <el-option label="失败" value="FAILED" />
+            <el-option label="已停止" value="STOPPED" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="触发方式">
+          <el-select v-model="searchForm.triggerType" placeholder="全部" clearable style="width: 120px">
+            <el-option label="全部" value="" />
+            <el-option label="手动" value="MANUAL" />
+            <el-option label="定时调度" value="SCHEDULED" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="开始时间">
+          <el-date-picker
+            v-model="searchForm.startRange"
+            type="datetimerange"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            range-separator="至"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleSearch">
+            <el-icon><Search /></el-icon>
+            查询
+          </el-button>
+          <el-button @click="resetSearch">
+            <el-icon><Refresh /></el-icon>
+            重置
+          </el-button>
+        </el-form-item>
+      </el-form>
       <el-table :data="tableData" v-loading="loading" stripe>
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="taskName" label="任务名称" min-width="160" />
@@ -40,8 +82,10 @@
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.size"
         :total="pagination.total"
+        :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next"
-        @change="fetchData"
+        @size-change="fetchData"
+        @current-change="fetchData"
       />
     </el-card>
 
@@ -60,12 +104,19 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getArchiveExecutionLog, getArchiveExecutionLogDownloadUrl, getArchiveTaskExecutions, type ArchiveExecution } from '../../api/archive'
+import { Refresh, Search } from '@element-plus/icons-vue'
+import { getArchiveExecutionLog, getArchiveExecutionLogDownloadUrl, getArchiveTaskExecutions, type ArchiveExecution, type ArchiveExecutionQuery } from '../../api/archive'
 
 const loading = ref(false)
 const tableData = ref<ArchiveExecution[]>([])
 const logVisible = ref(false)
 const parsedLogs = ref<Array<{ time: string; level: string; message: string }>>([])
+const searchForm = reactive({
+  taskName: '',
+  status: '',
+  triggerType: '',
+  startRange: [] as string[]
+})
 const pagination = reactive({ page: 1, size: 20, total: 0 })
 
 const getStatusType = (status: string) => ({ RUNNING: 'primary', SUCCESS: 'success', FAILED: 'danger', STOPPED: 'warning' }[status] || 'info')
@@ -76,7 +127,19 @@ const formatDate = (dateStr?: string) => dateStr ? new Date(dateStr).toLocaleStr
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await getArchiveTaskExecutions(undefined, { page: pagination.page - 1, size: pagination.size })
+    const params: ArchiveExecutionQuery = {
+      page: pagination.page - 1,
+      size: pagination.size
+    }
+    if (searchForm.taskName) params.taskName = searchForm.taskName
+    if (searchForm.status) params.status = searchForm.status
+    if (searchForm.triggerType) params.triggerType = searchForm.triggerType
+    if (searchForm.startRange?.length === 2) {
+      params.startFrom = searchForm.startRange[0]
+      params.startTo = searchForm.startRange[1]
+    }
+
+    const res = await getArchiveTaskExecutions(undefined, params)
     if (res.code === 200) {
       tableData.value = res.data.content
       pagination.total = res.data.totalElements
@@ -86,6 +149,20 @@ const fetchData = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const handleSearch = () => {
+  pagination.page = 1
+  fetchData()
+}
+
+const resetSearch = () => {
+  searchForm.taskName = ''
+  searchForm.status = ''
+  searchForm.triggerType = ''
+  searchForm.startRange = []
+  pagination.page = 1
+  fetchData()
 }
 
 const viewLog = async (row: ArchiveExecution) => {
@@ -107,6 +184,10 @@ onMounted(fetchData)
 </script>
 
 <style scoped>
+.search-form {
+  margin-bottom: 20px;
+}
+
 .log-container {
   max-height: 560px;
   overflow-y: auto;

@@ -112,7 +112,17 @@ export function stopArchiveTask(id: number) {
   return request.post(`/archive-tasks/${id}/stop`)
 }
 
-export function getArchiveTaskExecutions(taskId?: number, params?: { page?: number; size?: number }) {
+export interface ArchiveExecutionQuery {
+  taskName?: string
+  status?: string
+  triggerType?: string
+  startFrom?: string
+  startTo?: string
+  page?: number
+  size?: number
+}
+
+export function getArchiveTaskExecutions(taskId?: number, params?: ArchiveExecutionQuery) {
   if (taskId) {
     return request.get(`/archive-tasks/${taskId}/executions`, { params })
   }

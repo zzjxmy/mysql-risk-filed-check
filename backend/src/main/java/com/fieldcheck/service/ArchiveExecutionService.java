@@ -72,7 +72,23 @@ public class ArchiveExecutionService {
     }
 
     public Page<ArchiveExecution> getAllExecutions(Pageable pageable) {
-        return executionRepository.findAll(pageable);
+        return getExecutions(null, null, null, null, null, pageable);
+    }
+
+    public Page<ArchiveExecution> getExecutions(String taskName,
+                                                ExecutionStatus status,
+                                                String triggerType,
+                                                LocalDateTime startFrom,
+                                                LocalDateTime startTo,
+                                                Pageable pageable) {
+        return executionRepository.findByConditions(
+                normalize(taskName),
+                status,
+                normalize(triggerType),
+                startFrom,
+                startTo,
+                pageable
+        );
     }
 
     public ArchiveExecution getExecution(Long id) {
@@ -230,5 +246,13 @@ public class ArchiveExecutionService {
                 .triggerType(execution.getTriggerType())
                 .progressPercent(progressPercent)
                 .build();
+    }
+
+    private String normalize(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }
